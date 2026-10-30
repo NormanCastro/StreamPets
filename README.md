@@ -1,6 +1,6 @@
 # StreamPets
 
-Mascotas animadas para overlays de Twitch (OBS). Este repositorio está en la **Fase 1: motor de mascotas + escenario de prueba**. Todavía no hay backend, dashboard ni Twitch.
+Mascotas animadas para overlays de Twitch (OBS). Este repositorio está en la **Fase 1: motor de mascotas + escenario de prueba**. Hoy incluye además backend, dashboard y lectura del chat de Twitch (ver más abajo).
 
 ## Qué hay
 
@@ -133,14 +133,28 @@ NODE_PATH=$(npm root -g) node scripts/e2e-dashboard.mjs          # navegador rea
 1. Sube el contenido de esta carpeta a un repositorio de GitHub (`render.yaml` debe quedar en la raíz del repo).
 2. En Render: *New > Blueprint*, elige el repo. Pide `STREAMER_LOGIN` (usuario de Twitch en minúsculas) y `STREAMER_DISPLAY_NAME`.
 3. Al terminar el build, abre *Environment* y copia `ADMIN_TOKEN`: es la clave para entrar a `https://TU-SERVICIO.onrender.com/admin`.
-4. Para ver el panel con datos de ejemplo (mientras no haya chat real):
+4. Chat real: el Blueprint deja `TWITCH_CHAT_ENABLED=true` y lee el canal `STREAMER_LOGIN`. En *Logs* debe salir «Twitch: leyendo el chat», y `GET /api/admin/me` muestra el estado (`twitch.state` = `joined`).
+5. Para ver el panel con datos de ejemplo (con `ENABLE_DEV_CHAT=true`):
    `ADMIN_TOKEN=... node apps/server/scripts/simulate-chat.mjs --url https://TU-SERVICIO.onrender.com --count 12`
 
 Plan gratuito (según la documentación de Render): el servicio se duerme tras 15 min sin tráfico (despertar tarda ~1 min) y la base gratuita caduca a los 30 días.
 Limitación del diseño: el estado de «quién está en pantalla» vive en la memoria del proceso, así que debe haber **una sola instancia**.
 
+## Chat de Twitch
+
+Solo lectura (IRC por WebSocket, `wss://irc-ws.chat.twitch.tv`). Nunca envía mensajes y no guarda el texto del chat, solo quién escribió, su nombre y si es sub.
+
+| Variable | Qué hace |
+|---|---|
+| `TWITCH_CHAT_ENABLED` | `true` para activarlo (por defecto apagado) |
+| `TWITCH_CHANNEL` | Canal a leer; si falta se usa `STREAMER_LOGIN` |
+| `TWITCH_BOT_LOGIN` + `TWITCH_OAUTH_TOKEN` | Opcionales, juntos: entra con cuenta y token (`chat:read`) en vez de anónimo |
+
+Verificado en la documentación oficial: conexión, `CAP REQ` de tags/commands, `PING/PONG`, `RECONNECT`, etiquetas `badges`/`user-id`/`display-name`, autenticación con token.
+**No verificado:** el modo anónimo (`justinfan`) solo está respaldado por foros, no por la documentación; si Twitch lo rechaza, usa el modo con token. Que la insignia `founder` cuente como sub tampoco está confirmado. Tampoco se probó contra Twitch real (el entorno de desarrollo no llega a Twitch): solo contra un servidor IRC falso en los tests.
+Twitch recomienda EventSub para chat nuevo; IRC sigue funcionando y no tiene fecha de retiro anunciada.
+
 ## Pendiente
 
-- Lectura real del chat de Twitch (hoy solo chat simulado) y detección de subs: hay que verificarlo contra la documentación oficial de Twitch antes de implementarlo.
 - Login con Twitch para el dashboard (hoy se entra con una clave única `ADMIN_TOKEN`).
 - Más especies; comprobar los términos de licencia de los sprites generados con PixelLab antes de usarlos en público.

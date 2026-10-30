@@ -24,6 +24,8 @@ export interface AppOptions {
   overlayDist: string;
   /** Panel de administración compilado (se sirve en /admin/). Opcional. */
   dashboardDist?: string;
+  /** Estado del lector de chat de Twitch (para /api/admin/me). */
+  twitchStatus?: () => unknown;
   allowedOrigins?: string[];
   enableDevChat?: boolean;
   trustProxy?: boolean;
@@ -134,6 +136,7 @@ export async function buildApp(opts: AppOptions): Promise<BuiltApp> {
     adminToken: opts.adminToken,
     streamerId: opts.streamerId,
     enableDevChat: opts.enableDevChat ?? false,
+    twitchStatus: opts.twitchStatus ?? (() => null),
   });
 
   // ── Archivos estáticos: sprites y overlay compilado ──

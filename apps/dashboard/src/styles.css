@@ -75,7 +75,16 @@ button.danger:hover:not(:disabled) { box-shadow: 0 0 16px -4px rgba(255, 122, 14
   background: linear-gradient(90deg, transparent, var(--accent), transparent); filter: blur(4px); opacity: .8;
 }
 .brand { display: flex; align-items: center; gap: 10px; }
-.logo { width: 30px; height: 30px; filter: drop-shadow(0 0 10px var(--glow)); }
+.logo-wide {
+  display: block; height: 132px; width: auto; margin: -10px 0 -8px;
+  filter: drop-shadow(0 0 22px rgba(168, 85, 247, 0.4));
+}
+.login-logo {
+  display: block; width: 100%; max-width: 320px; height: auto; margin: 0 auto 6px; position: relative; z-index: 1;
+  filter: drop-shadow(0 0 26px rgba(168, 85, 247, 0.45));
+}
+.center { text-align: center; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .topbar nav { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; padding: 4px; background: rgba(10, 6, 22, 0.5); border: 1px solid var(--line-soft); border-radius: 12px; width: fit-content; flex: 0 1 auto; margin-right: auto; }
 .tab { background: transparent; color: var(--muted); font-weight: 500; box-shadow: none; border-color: transparent; padding: 7px 14px; }
 .tab:hover:not(:disabled) { color: var(--text); box-shadow: none; filter: none; }
@@ -89,7 +98,8 @@ button.danger:hover:not(:disabled) { box-shadow: 0 0 16px -4px rgba(255, 122, 14
   box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.06), 0 18px 48px -18px rgba(124, 58, 237, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 .login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
-.login .card { width: 100%; max-width: 380px; display: grid; gap: 14px; }
+.login-box { width: 100%; max-width: 380px; }
+.login .card { width: 100%; display: grid; gap: 14px; }
 .form { display: grid; gap: 16px; max-width: 580px; }
 .form label, .login label { display: grid; gap: 5px; font-size: 13px; color: var(--muted); }
 .row { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -171,6 +181,7 @@ td select { width: auto; min-width: 140px; padding: 6px 10px; }
 .switch input:disabled { cursor: not-allowed; }
 
 @media (max-width: 640px) {
+  .logo-wide { height: 92px; }
   .stats { gap: 8px; }
   .stat { padding: 10px 12px; }
   .stat-value { font-size: 21px; }

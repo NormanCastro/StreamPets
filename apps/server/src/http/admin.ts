@@ -18,6 +18,7 @@ export interface AdminDeps {
   /** Streamer al que da acceso el ADMIN_TOKEN (provisional hasta tener login con Twitch). */
   streamerId: string;
   enableDevChat: boolean;
+  twitchStatus: () => unknown;
 }
 
 declare module "fastify" {
@@ -118,7 +119,10 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
 
       admin.get("/me", async (req) => {
         const streamer = await repo.getStreamer(db, sid(req));
-        return { streamer: streamer ? { login: streamer.login, displayName: streamer.displayName } : null };
+        return {
+          streamer: streamer ? { login: streamer.login, displayName: streamer.displayName } : null,
+          twitch: deps.twitchStatus(),
+        };
       });
 
       // ── Mascotas de los espectadores ──

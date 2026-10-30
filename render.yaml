@@ -32,7 +32,10 @@ services:
         sync: false
       - key: STREAMER_DISPLAY_NAME
         sync: false
-      # Solo para la demo del diseño: permite llenar el panel con espectadores de ejemplo.
-      # Cuando se conecte el chat real de Twitch, borra esta variable.
-      - key: ENABLE_DEV_CHAT
+      # Lectura del chat real de Twitch (solo lectura, nunca escribe en el chat).
+      # El canal es STREAMER_LOGIN. Sin cuenta ni token entra como anónimo.
+      - key: TWITCH_CHAT_ENABLED
         value: "true"
+      # Chat simulado para pruebas; en producción conviene dejarlo apagado.
+      - key: ENABLE_DEV_CHAT
+        value: "false"

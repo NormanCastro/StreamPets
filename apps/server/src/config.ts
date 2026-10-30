@@ -21,6 +21,15 @@ const EnvSchema = z.object({
   ADMIN_TOKEN: z.string().optional(),
   STREAMER_LOGIN: z.string().default("streamer"),
   STREAMER_DISPLAY_NAME: z.string().default("Streamer"),
+  /** Lectura del chat real de Twitch. Apagada por defecto. */
+  TWITCH_CHAT_ENABLED: bool.optional(),
+  /** Canal a leer. Si falta se usa STREAMER_LOGIN. */
+  TWITCH_CHANNEL: z.string().optional(),
+  /** Opcional (vía oficial): cuenta y token de usuario con permiso chat:read. Sin ellos se lee como anónimo. */
+  TWITCH_BOT_LOGIN: z.string().optional(),
+  TWITCH_OAUTH_TOKEN: z.string().optional(),
+  /** Solo para pruebas con un servidor IRC falso. */
+  TWITCH_IRC_URL: z.string().optional(),
   /** Orígenes permitidos para CORS (dashboard en otro dominio), separados por coma. */
   ALLOWED_ORIGINS: z.string().default(""),
   ENABLE_DEV_CHAT: bool.optional(),
@@ -43,6 +52,11 @@ export interface Config {
   /** true si el token se generó automáticamente (solo en desarrollo). */
   adminTokenGenerated: boolean;
   streamerLogin: string;
+  twitchChatEnabled: boolean;
+  twitchChannel: string;
+  twitchIrcUrl: string | undefined;
+  /** Si es undefined se lee el chat como anónimo. */
+  twitchAuth: { login: string; token: string } | undefined;
   streamerDisplayName: string;
   allowedOrigins: string[];
   enableDevChat: boolean;
@@ -80,6 +94,32 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     adminTokenGenerated = true;
   }
 
+  // Acepta "@Nombre", "#nombre" o con espacios: se deja el login limpio y en minúsculas.
+  const cleanLogin = (s: string): string => s.trim().replace(/^[@#]+/, "").toLowerCase();
+  const LOGIN_RE = /^[a-z0-9_]{1,25}$/;
+  const twitchChatEnabled = e.TWITCH_CHAT_ENABLED ?? false;
+  const streamerLogin = cleanLogin(e.STREAMER_LOGIN);
+  const twitchChannel = cleanLogin(e.TWITCH_CHANNEL ?? e.STREAMER_LOGIN);
+  let twitchAuth: { login: string; token: string } | undefined;
+  if (twitchChatEnabled) {
+    if (e.TWITCH_CHANNEL === undefined && env["STREAMER_LOGIN"] === undefined) {
+      throw new ConfigError("con TWITCH_CHAT_ENABLED hay que definir TWITCH_CHANNEL o STREAMER_LOGIN (el usuario de Twitch del canal)");
+    }
+    if (!LOGIN_RE.test(twitchChannel)) {
+      throw new ConfigError(`el canal de Twitch "${twitchChannel}" no es válido (1 a 25 letras, números o guion bajo)`);
+    }
+    if ((e.TWITCH_BOT_LOGIN === undefined) !== (e.TWITCH_OAUTH_TOKEN === undefined)) {
+      throw new ConfigError("TWITCH_BOT_LOGIN y TWITCH_OAUTH_TOKEN van juntos: define los dos o ninguno");
+    }
+    if (e.TWITCH_BOT_LOGIN !== undefined && e.TWITCH_OAUTH_TOKEN !== undefined) {
+      const login = cleanLogin(e.TWITCH_BOT_LOGIN);
+      const token = e.TWITCH_OAUTH_TOKEN.trim().replace(/^oauth:/i, "");
+      if (!LOGIN_RE.test(login)) throw new ConfigError("TWITCH_BOT_LOGIN no es un usuario de Twitch válido");
+      if (!/^[A-Za-z0-9]{10,100}$/.test(token)) throw new ConfigError("TWITCH_OAUTH_TOKEN no tiene el formato de un token de Twitch");
+      twitchAuth = { login, token };
+    }
+  }
+
   return {
     nodeEnv: e.NODE_ENV,
     port: e.PORT,
@@ -89,7 +129,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     pgliteDir: e.PGLITE_DIR,
     adminToken: adminToken as string,
     adminTokenGenerated,
-    streamerLogin: e.STREAMER_LOGIN.toLowerCase(),
+    streamerLogin,
+    twitchChatEnabled,
+    twitchChannel,
+    twitchIrcUrl: e.TWITCH_IRC_URL,
+    twitchAuth,
     streamerDisplayName: e.STREAMER_DISPLAY_NAME,
     allowedOrigins: e.ALLOWED_ORIGINS.split(",")
       .map((s) => s.trim())

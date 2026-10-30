@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Logo } from "./Logo";
+import { LogoFull } from "./Logo";
 import { api, describeError, setToken } from "../api";
 
 export function Login({ onLogin }: { onLogin: () => void }) {
@@ -28,27 +28,27 @@ export function Login({ onLogin }: { onLogin: () => void }) {
 
   return (
     <div className="login">
-      <form onSubmit={(e) => void submit(e)} className="card">
-        <h1 className="brand">
-          <Logo />
-          StreamPets
-        </h1>
-        <p className="muted">Panel de administración</p>
-        <label>
-          Clave de administración
-          <input
-            type="password"
-            autoComplete="current-password"
-            autoFocus
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          />
-        </label>
-        {error && <p className="error" role="alert">{error}</p>}
-        <button type="submit" disabled={busy || value.trim() === ""}>
-          {busy ? "Entrando…" : "Entrar"}
-        </button>
-      </form>
+      <div className="login-box">
+        <LogoFull />
+        <form onSubmit={(e) => void submit(e)} className="card">
+          <h1 className="sr-only">StreamPets</h1>
+          <p className="muted center">Panel de administración</p>
+          <label>
+            Clave de administración
+            <input
+              type="password"
+              autoComplete="current-password"
+              autoFocus
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          </label>
+          {error && <p className="error" role="alert">{error}</p>}
+          <button type="submit" disabled={busy || value.trim() === ""}>
+            {busy ? "Entrando…" : "Entrar"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

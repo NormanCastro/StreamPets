@@ -57,13 +57,12 @@ await page.getByLabel("Buscar espectador").fill("");
 await page.getByText("4 espectadores").waitFor();
 console.log("OK búsqueda");
 
-// 3b) separar subs de viewers
+// 3b) separar subs de viewers (se espera el resultado real, no un texto que ya podría estar en pantalla)
+const subPills = () => page.getByText("SUB", { exact: true }).count();
 await page.getByRole("button", { name: /^Subs/ }).click();
-await page.getByText("2 espectadores").waitFor();
-if ((await page.getByText("SUB", { exact: true }).count()) !== 2) await fail("deberían verse 2 etiquetas SUB");
+await until(async () => (await subPills()) === 2, "2 etiquetas SUB en el filtro Subs");
 await page.getByRole("button", { name: /^Viewers/ }).click();
-await page.getByText("2 espectadores").waitFor();
-if ((await page.getByText("SUB", { exact: true }).count()) !== 0) await fail("no debería haber SUB en Viewers");
+await until(async () => (await subPills()) === 0 && (await page.getByText("mochi").count()) > 0, "Viewers sin SUB");
 await page.getByRole("button", { name: /^Todos/ }).click();
 await page.getByText("4 espectadores").waitFor();
 console.log("OK filtros Todos / Subs / Viewers");

@@ -54,7 +54,6 @@ export function App() {
       <header className="topbar">
         <h1 className="brand">
           <Logo />
-          StreamPets
         </h1>
         <nav role="tablist" aria-label="Secciones">
           {TABS.map((t) => (
