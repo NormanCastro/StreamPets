@@ -1,0 +1,38 @@
+# Blueprint de Render: un solo Web Service (API + WebSocket + overlay + dashboard + sprites) y Postgres.
+#
+# Condiciones del plan gratuito (según https://render.com/docs/free, revisar antes de usarlo en serio):
+#  - El servicio se duerme tras 15 min sin tráfico; despertarlo tarda ~1 min. Un overlay abierto en OBS
+#    mantiene tráfico (latido cada 15 s), así que no se duerme mientras se transmite.
+#  - La base gratuita caduca a los 30 días de creada (luego 14 días de gracia y se borra) y no tiene backups.
+databases:
+  - name: streampets-db
+    plan: free
+    databaseName: streampets
+
+services:
+  - type: web
+    name: streampets
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @streampets/overlay build && pnpm --filter @streampets/dashboard build
+    startCommand: pnpm --filter @streampets/server start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: streampets-db
+          property: connectionString
+      - key: ADMIN_TOKEN        # Render lo genera; se ve en Environment. Es la clave para entrar a /admin
+        generateValue: true
+      - key: STREAMER_LOGIN
+        sync: false
+      - key: STREAMER_DISPLAY_NAME
+        sync: false
+      # Solo para la demo del diseño: permite llenar el panel con espectadores de ejemplo.
+      # Cuando se conecte el chat real de Twitch, borra esta variable.
+      - key: ENABLE_DEV_CHAT
+        value: "true"

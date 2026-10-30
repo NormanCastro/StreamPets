@@ -1,0 +1,109 @@
+{
+  "character": {
+    "id": "4e6622b4-4cd8-46d4-84db-f4a07cd81d87",
+    "name": "Idle",
+    "prompt": "Cute shiba inu puppy pet, chibi proportions, big head, small stubby body, short legs, curled tail, cream and orange fur with white chest, side view, pixel art, 32x32, dark 1px outline, limited warm palette of about 12 colors, simple shading, clean pixel edges, no anti-aliasing, no background, game sprite",
+    "size": {
+      "width": 32,
+      "height": 32
+    },
+    "directions": 8,
+    "view": "side"
+  },
+  "spritesheet": {
+    "path": "Cute_shiba_inu_puppy_pet-Idle.png",
+    "cell_size": {
+      "width": 48,
+      "height": 48
+    },
+    "sheet_size": {
+      "width": 384,
+      "height": 432
+    },
+    "columns": 8,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "5b46f3c9-96a4-4b8d-8fd2-7e72bbf32fcb",
+        "direction": "south"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "5b46f3c9-96a4-4b8d-8fd2-7e72bbf32fcb",
+        "direction": "east"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "5b46f3c9-96a4-4b8d-8fd2-7e72bbf32fcb",
+        "direction": "north"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "5b46f3c9-96a4-4b8d-8fd2-7e72bbf32fcb",
+        "direction": "west"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "8927ef1b-c403-4d6b-a027-09fb62b35c48",
+        "direction": "south"
+      },
+      {
+        "row": 6,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "8927ef1b-c403-4d6b-a027-09fb62b35c48",
+        "direction": "east"
+      },
+      {
+        "row": 7,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "8927ef1b-c403-4d6b-a027-09fb62b35c48",
+        "direction": "north"
+      },
+      {
+        "row": 8,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "8927ef1b-c403-4d6b-a027-09fb62b35c48",
+        "direction": "west"
+      }
+    ]
+  },
+  "export_version": "1.0",
+  "export_date": "2026-10-29T21:45:10.097164+00:00"
+}

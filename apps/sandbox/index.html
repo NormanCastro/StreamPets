@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StreamPets · Sandbox</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #14161c;
+        --panel: #1d2029;
+        --line: #2c303c;
+        --text: #e8eaf0;
+        --muted: #9aa1b2;
+        --accent: #ffb454;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+      body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+      main { position: relative; min-width: 0; display: flex; flex-direction: column; }
+      #stage-wrap { position: relative; flex: 1; min-height: 0; }
+      canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+      #stage-wrap.bg-checker { background: repeating-conic-gradient(#2a2d38 0% 25%, #232630 0% 50%) 0 0 / 24px 24px; }
+      #stage-wrap.bg-dark { background: #0b0c10; }
+      #stage-wrap.bg-green { background: #00b140; }
+      #stats { position: absolute; top: 8px; left: 10px; z-index: 2; color: var(--muted); font: 12px ui-monospace, monospace; pointer-events: none; text-shadow: 0 1px 2px #000; }
+      aside { background: var(--panel); border-left: 1px solid var(--line); padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+      h1 { font-size: 15px; margin: 0; }
+      h1 small { color: var(--muted); font-weight: 400; }
+      h2 { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+      .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+      label { display: flex; justify-content: space-between; gap: 8px; align-items: center; width: 100%; color: var(--muted); }
+      label output { color: var(--text); min-width: 3ch; text-align: right; }
+      input[type="range"] { width: 100%; accent-color: var(--accent); }
+      input[type="text"], select { background: #12141a; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font: inherit; min-width: 0; }
+      input[type="text"] { flex: 1; }
+      button { background: #272b37; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+      button:hover { border-color: var(--accent); }
+      button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+      .check { display: flex; gap: 8px; align-items: center; color: var(--text); width: auto; }
+      #log { font: 11px ui-monospace, monospace; color: var(--muted); max-height: 110px; overflow-y: auto; background: #12141a; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 0; white-space: pre-wrap; }
+      #error { color: #ff7a7a; display: none; padding: 10px; background: #2a1517; border: 1px solid #5a2a2e; border-radius: 6px; }
+      @media (max-width: 760px) { body { grid-template-columns: 1fr; grid-template-rows: 60vh auto; } aside { border-left: 0; border-top: 1px solid var(--line); } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div id="stage-wrap" class="bg-checker">
+        <div id="stats"></div>
+        <canvas id="stage"></canvas>
+      </div>
+    </main>
+    <aside>
+      <h1>StreamPets <small>· Fase 1 · sandbox</small></h1>
+      <div id="error" role="alert"></div>
+
+      <section>
+        <h2>Mascotas</h2>
+        <div class="row">
+          <input id="pet-name" type="text" placeholder="nombre del espectador" maxlength="18" aria-label="Nombre de la mascota" />
+          <button id="add">Añadir</button>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <button id="add5">+5</button>
+          <button id="remove-one">Quitar una</button>
+          <button id="clear">Vaciar</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>Comandos</h2>
+        <div class="row" style="margin-bottom:6px">
+          <select id="target" aria-label="Mascota objetivo"><option value="*">Todas</option></select>
+        </div>
+        <div class="row">
+          <button data-cmd="WALK">!walk</button>
+          <button data-cmd="RUN">!run</button>
+          <button data-cmd="JUMP">!jump</button>
+          <button data-cmd="SIT">!sit</button>
+          <button data-cmd="SLEEP">!sleep</button>
+          <button data-cmd="IDLE">!idle</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>Ajustes</h2>
+        <div class="row">
+          <label>Escala de píxel <output id="scale-out">3</output></label>
+          <input id="scale" type="range" min="1" max="6" step="1" value="3" />
+          <label>Velocidad al caminar <output id="walk-out">20</output></label>
+          <input id="walk" type="range" min="4" max="60" step="1" value="20" />
+          <label>Velocidad al correr <output id="run-out">48</output></label>
+          <input id="run" type="range" min="10" max="120" step="1" value="48" />
+          <label>Tope de FPS <select id="fps"><option value="0">Libre</option><option value="60">60</option><option value="30" selected>30</option><option value="15">15</option></select></label>
+          <label>Fondo <select id="bg"><option value="checker">Cuadros</option><option value="dark">Oscuro</option><option value="green">Croma</option></select></label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Depuración</h2>
+        <div class="row">
+          <label class="check"><input id="dbg-names" type="checkbox" checked /> Nombres</label>
+          <label class="check"><input id="dbg-bounds" type="checkbox" /> Límites</label>
+          <label class="check"><input id="dbg-anchors" type="checkbox" /> Puntos de apoyo</label>
+          <label class="check"><input id="dbg-prox" type="checkbox" /> Proximidad</label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Eventos</h2>
+        <pre id="log"></pre>
+      </section>
+    </aside>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

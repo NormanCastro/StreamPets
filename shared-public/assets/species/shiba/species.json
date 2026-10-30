@@ -1,0 +1,15 @@
+{
+  "id": "shiba",
+  "name": "Shiba",
+  "sheetImage": "shiba.png",
+  "sheetMeta": "shiba.sheet.json",
+  "anchor": { "x": 24, "y": 39 },
+  "shadow": { "rx": 9, "ry": 2.5 },
+  "labelOffsetY": 31,
+  "breathSplitY": 26,
+  "clips": {
+    "idle": { "source": "Idle", "fps": 6, "loop": true },
+    "walk": { "source": "Walk", "fps": 10, "loop": true },
+    "run": { "source": "Walk", "fps": 16, "loop": true }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "species": [
+    { "id": "shiba", "name": "Shiba", "url": "/assets/species/shiba/species.json" }
+  ]
+}
