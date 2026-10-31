@@ -351,7 +351,7 @@ describe("login con Twitch", () => {
     await b.app.close();
   });
 
-  it("login redirige a Twitch con state y nonce, y guarda la cookie de estado (HttpOnly, Secure, /auth)", async () => {
+  it("login redirige a Twitch con state y nonce, y guarda la cookie de estado (HttpOnly, Secure, Path=/)", async () => {
     const r = await built.app.inject({ method: "GET", url: "/auth/twitch/login", headers: HOST });
     expect(r.statusCode).toBe(302);
     const u = new URL(r.headers.location as string);
@@ -361,7 +361,7 @@ describe("login con Twitch", () => {
     const c = rawSetCookies(r).find((x) => x.startsWith(OAUTHC)) as string;
     expect(c).toContain("HttpOnly");
     expect(c).toContain("Secure");
-    expect(c).toContain("Path=/auth");
+    expect(c).toContain("Path=/;"); // el prefijo __Host- exige Path=/
     expect(c).toContain("SameSite=Lax");
     expect(r.headers["cache-control"]).toBe("no-store");
   });
@@ -486,6 +486,20 @@ describe("login con Twitch", () => {
     await loginAs({ sub: "100", login: "nazhika" });
     const fake = await loginAs({ sub: "666", login: "nazhika" });
     expect(fake.cb.headers.location).toBe("/admin/?login_error=not_allowed");
+  });
+});
+
+describe("reglas del prefijo __Host- (el navegador descarta la cookie si no se cumplen)", () => {
+  it("todas las cookies que ponemos llevan Secure, Path=/ y no llevan Domain", async () => {
+    const { start, cb } = await loginAs({ sub: "100", login: "nazhika" });
+    const out = await built.app.inject({ method: "POST", url: "/api/admin/logout", headers: asSession(cookiesOf(cb).get(SESSION) as string, csrf) });
+    const all = [...rawSetCookies(start), ...rawSetCookies(cb), ...rawSetCookies(out)].filter((c) => c.startsWith("__Host-"));
+    expect(all.length).toBeGreaterThanOrEqual(4);
+    for (const c of all) {
+      expect(c).toContain("; Secure");
+      expect(c).toContain("; Path=/;");
+      expect(c).not.toMatch(/Domain=/i);
+    }
   });
 });
 

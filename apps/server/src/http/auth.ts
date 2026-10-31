@@ -157,14 +157,14 @@ export function registerAuthRoutes(app: FastifyInstance, d: AuthRoutesDeps): voi
     const nonce = randomBytes(24).toString("base64url");
     reply.header(
       "Set-Cookie",
-      serializeCookie(oauthCookie, `${state}.${nonce}`, { secure: d.auth.cookieSecure, maxAgeSec: 600, path: "/auth" }),
+      serializeCookie(oauthCookie, `${state}.${nonce}`, { secure: d.auth.cookieSecure, maxAgeSec: 600 }),
     );
     return reply.header("Cache-Control", "no-store").redirect(d.oauth.authorizeUrl({ state, nonce }));
   });
 
   app.get("/auth/twitch/callback", { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (req, reply) => {
     // La cookie de estado sirve una sola vez, pase lo que pase.
-    const cookies = [serializeCookie(oauthCookie, "", { secure: d.auth.cookieSecure, maxAgeSec: 0, path: "/auth" })];
+    const cookies = [serializeCookie(oauthCookie, "", { secure: d.auth.cookieSecure, maxAgeSec: 0 })];
     const finish = (reason?: string): FastifyReply => {
       reply.header("Set-Cookie", cookies);
       return backToPanel(reply, reason);
