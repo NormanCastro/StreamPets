@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { createSign, generateKeyPairSync } from "node:crypto";
-import { mkdtempSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 const { chromium } = createRequire(import.meta.url)("playwright");
@@ -53,10 +53,20 @@ const twitch = createServer((req, res) => {
 });
 await new Promise((r) => twitch.listen(TW_PORT, "127.0.0.1", r));
 
+// Catálogo de prueba: dragón = premium, zorro = exclusiva, resto general y gratis.
+const assets = mkdtempSync(join(tmpdir(), "sp-assets-"));
+cpSync(new URL("../shared-public/assets", import.meta.url).pathname, assets, { recursive: true });
+const idx = JSON.parse(readFileSync(join(assets, "species/index.json"), "utf8"));
+for (const sp of idx.species) {
+  if (sp.id === "dragon") sp.tier = "premium";
+  if (sp.id === "zorro") sp.scope = "exclusive";
+}
+writeFileSync(join(assets, "species/index.json"), JSON.stringify(idx));
+
 const server = spawn("pnpm", ["--filter", "@streampets/server", "exec", "tsx", "src/index.ts"], {
   env: {
     ...process.env, PORT: String(PORT), ADMIN_TOKEN: ADMIN, LOG_LEVEL: "warn", HOST: "127.0.0.1",
-    PGLITE_DIR: mkdtempSync(join(tmpdir(), "sp-")), STREAMER_LOGIN: "nazhika",
+    PGLITE_DIR: mkdtempSync(join(tmpdir(), "sp-")), STREAMER_LOGIN: "nazhika", ASSETS_DIR: assets, ENABLE_DEV_CHAT: "true",
     TWITCH_CLIENT_ID: CLIENT_ID, TWITCH_CLIENT_SECRET: "e2esecret", PUBLIC_URL: BASE, TWITCH_ID_URL: `http://localhost:${TW_PORT}`,
   },
   stdio: ["ignore", "inherit", "inherit"],
@@ -138,6 +148,28 @@ const ov = await friend.ctx.newPage();
 await ov.goto(url);
 await ov.waitForFunction(() => window.__overlay, null, { timeout: 8000 });
 console.log("OK el overlay de la amiga carga");
+
+// 6b) con plan gratis, en su panel el dragón (premium) y el zorro (exclusiva) salen bloqueados
+await friend.page.getByRole("tab", { name: "Ajustes" }).click();
+const opts = friend.page.getByLabel("Especie para los nuevos").locator("option");
+const text = async (name) => (await opts.filter({ hasText: name }).first().textContent()) ?? "";
+const dis = async (name) => await opts.filter({ hasText: name }).first().evaluate((el) => el.disabled);
+if (!(await text("Dragón")).includes("🔒") || !(await dis("Dragón"))) await fail("el dragón debería verse bloqueado para un canal gratis");
+if (!(await text("Zorro")).includes("🔒") || !(await dis("Zorro"))) await fail("el zorro debería verse bloqueado");
+if (await dis("Shiba")) await fail("el shiba no debería estar bloqueado");
+console.log("OK plan gratis: premium y exclusivas salen bloqueadas");
+
+// 6c) el admin la pasa a premium y le da el zorro; se desbloquea (sin que ella haga nada más que recargar)
+await adm.page.getByRole("row", { name: /@amiga/ }).getByLabel("Plan de amiga").selectOption("premium");
+await adm.page.getByRole("row", { name: /@amiga/ }).getByRole("button", { name: /^Especies/ }).click();
+await adm.page.getByLabel("Zorro para amiga").click(); // casilla controlada: el estado cambia cuando responde el servidor
+await adm.page.getByRole("button", { name: "Especies (1/1)" }).waitFor();
+await friend.page.reload();
+await friend.page.getByText("PREMIUM").waitFor();
+await friend.page.getByRole("tab", { name: "Ajustes" }).click();
+if (await dis("Dragón")) await fail("el dragón debería estar desbloqueado con plan premium");
+if (await dis("Zorro")) await fail("el zorro debería estar desbloqueado con permiso");
+console.log("OK plan premium y permiso de especie desbloquean en su panel");
 
 // 7) la amiga no puede usar la API de canales
 const forbidden = await friend.page.evaluate(async () => (await fetch("/api/admin/channels")).status);

@@ -5,6 +5,7 @@ import {
   overlays,
   pets,
   sessions,
+  speciesAccess,
   streamerSettings,
   streamers,
   viewers,
@@ -426,6 +427,80 @@ export async function findStreamerForAllowed(db: Db, row: AllowedChannelRow): Pr
     if (byId) return byId;
   }
   return (await db.select().from(streamers).where(eq(streamers.login, row.login)))[0];
+}
+
+// ───────────────────────────── planes y especies por canal ─────────────────────────────
+
+export type ChannelPlan = "free" | "premium";
+
+export function asPlan(v: string): ChannelPlan {
+  return v === "premium" ? "premium" : "free";
+}
+
+/** Plan y especies exclusivas permitidas del canal al que pertenece este streamer (gratis y sin extras si no tiene permiso vigente). */
+export async function getAccessForStreamer(
+  db: Db,
+  streamerId: string,
+): Promise<{ plan: ChannelPlan; grants: string[] }> {
+  const row = (
+    await db
+      .select({ id: allowedChannels.id, plan: allowedChannels.plan })
+      .from(streamers)
+      .innerJoin(
+        allowedChannels,
+        or(
+          eq(allowedChannels.twitchUserId, streamers.twitchUserId),
+          and(isNull(allowedChannels.twitchUserId), eq(allowedChannels.login, streamers.login)),
+        ),
+      )
+      .where(eq(streamers.id, streamerId))
+  )[0];
+  if (!row) return { plan: "free", grants: [] };
+  const grants = await db.select({ speciesId: speciesAccess.speciesId }).from(speciesAccess).where(eq(speciesAccess.allowedChannelId, row.id));
+  return { plan: asPlan(row.plan), grants: grants.map((g) => g.speciesId) };
+}
+
+/** Especies exclusivas por canal, indexadas por id de la fila de canal autorizado. */
+export async function listChannelGrants(db: Db): Promise<Map<string, string[]>> {
+  const rows = await db.select().from(speciesAccess).orderBy(speciesAccess.speciesId);
+  const out = new Map<string, string[]>();
+  for (const r of rows) out.set(r.allowedChannelId, [...(out.get(r.allowedChannelId) ?? []), r.speciesId]);
+  return out;
+}
+
+export async function setChannelPlan(db: Db, login: string, plan: ChannelPlan): Promise<AllowedChannelRow | undefined> {
+  return (await db.update(allowedChannels).set({ plan }).where(eq(allowedChannels.login, login)).returning())[0];
+}
+
+/** Reemplaza la lista de especies exclusivas del canal. */
+export async function setChannelSpecies(
+  db: Db,
+  login: string,
+  speciesIds: string[],
+): Promise<AllowedChannelRow | undefined> {
+  return db.transaction(async (tx) => {
+    const row = (await tx.select().from(allowedChannels).where(eq(allowedChannels.login, login)))[0];
+    if (!row) return undefined;
+    await tx.delete(speciesAccess).where(eq(speciesAccess.allowedChannelId, row.id));
+    if (speciesIds.length > 0) {
+      await tx.insert(speciesAccess).values(speciesIds.map((speciesId) => ({ allowedChannelId: row.id, speciesId })));
+    }
+    return row;
+  });
+}
+
+/** Mascotas de este streamer cuya especie ya no le corresponde. */
+export async function listPetsOutside(
+  db: Db,
+  streamerId: string,
+  allowedSpeciesIds: readonly string[],
+): Promise<Array<{ viewerId: string; speciesId: string }>> {
+  const rows = await db
+    .select({ viewerId: pets.viewerId, speciesId: pets.speciesId })
+    .from(pets)
+    .where(eq(pets.streamerId, streamerId));
+  const ok = new Set(allowedSpeciesIds);
+  return rows.filter((r) => !ok.has(r.speciesId));
 }
 
 // ───────────────────────────── sesiones ─────────────────────────────

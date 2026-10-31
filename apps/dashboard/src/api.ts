@@ -1,9 +1,27 @@
 const KEY = "streampets.adminToken";
 
+export type SpeciesScope = "general" | "exclusive";
+export type SpeciesTier = "free" | "premium";
+export type Plan = "free" | "premium";
 export interface Species {
   id: string;
   name: string;
   url: string;
+  scope: SpeciesScope;
+  tier: SpeciesTier;
+  /** true = este canal no puede usarla (se muestra, pero no se puede elegir). */
+  locked: boolean;
+}
+
+/** Por qué una especie está bloqueada, para mostrarlo en los selectores. */
+export function lockReason(s: Pick<Species, "scope" | "tier">): string {
+  if (s.scope === "exclusive") return s.tier === "premium" ? "Exclusiva premium" : "Exclusiva";
+  return "Premium";
+}
+/** Texto de una especie en un selector. */
+export function speciesLabel(s: Species): string {
+  if (s.locked) return `🔒 ${s.name} · ${lockReason(s)}`;
+  return s.tier === "premium" ? `${s.name} ★` : s.name;
 }
 export interface ViewerItem {
   id: string;
@@ -45,11 +63,15 @@ export type UserRole = "admin" | "streamer";
 export interface Me {
   streamer: { login: string; displayName: string } | null;
   role: UserRole;
+  plan: Plan;
 }
 export interface ChannelItem {
   login: string;
   linked: boolean;
   owner: boolean;
+  plan: Plan;
+  /** Especies exclusivas que tiene permitidas. */
+  species: string[];
   createdAt: string;
   lastLoginAt: string | null;
 }
@@ -68,6 +90,7 @@ export class ApiError extends Error {
 export function describeError(err: unknown): string {
   if (!(err instanceof ApiError)) return "No se pudo conectar con el servidor.";
   if (err.status === 401) return "Clave incorrecta.";
+  if (err.status === 403 && err.code === "species_locked") return "Esa especie no está incluida en tu plan.";
   if (err.status === 403) return err.code === "owner" ? "Ese es tu canal: no se puede quitar." : "No tienes permiso para hacer eso.";
   if (err.status === 404) return "No encontrado (puede que ya no exista).";
   if (err.status === 429) return "Demasiadas solicitudes, espera un momento.";
@@ -163,8 +186,10 @@ export const api = {
   logout: () => request<void>("POST", "/api/admin/logout"),
   channels: () => request<{ items: ChannelItem[] }>("GET", "/api/admin/channels"),
   addChannel: (login: string) => request<ChannelItem>("POST", "/api/admin/channels", { login }),
+  patchChannel: (login: string, body: { plan?: Plan; species?: string[] }) =>
+    request<ChannelItem>("PATCH", `/api/admin/channels/${encodeURIComponent(login)}`, body),
   removeChannel: (login: string) => request<void>("DELETE", `/api/admin/channels/${encodeURIComponent(login)}`),
-  species: () => request<{ species: Species[] }>("GET", "/api/species"),
+  species: () => request<{ species: Species[] }>("GET", "/api/admin/species"),
   viewers: (q: string, role: Role, limit: number, offset: number, signal?: AbortSignal) =>
     request<{ total: number; counts: ViewerCounts; items: ViewerItem[] }>(
       "GET",

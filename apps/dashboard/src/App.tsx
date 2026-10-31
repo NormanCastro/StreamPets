@@ -115,6 +115,7 @@ export function App() {
         {me.streamer && (
           <span className="who" title={me.role === "admin" ? "Administración" : "Sesión de Twitch"}>
             @{me.streamer.login}
+            {me.role === "streamer" && me.plan === "premium" && <span className="pill sub">PREMIUM</span>}
           </span>
         )}
         <button className="ghost" onClick={() => void logout()}>
@@ -126,7 +127,7 @@ export function App() {
         {activeTab === "viewers" && <ViewersPanel species={species} />}
         {activeTab === "settings" && <SettingsPanel species={species} />}
         {activeTab === "overlays" && <OverlaysPanel />}
-        {activeTab === "channels" && me.role === "admin" && <ChannelsPanel />}
+        {activeTab === "channels" && me.role === "admin" && <ChannelsPanel species={species} />}
       </main>
     </div>
   );

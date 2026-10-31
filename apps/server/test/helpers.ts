@@ -5,6 +5,7 @@ import type { ServerMessage } from "@streampets/shared";
 import { createDb } from "../src/db/client.js";
 import type { DbHandle } from "../src/db/client.js";
 import * as repo from "../src/db/repo.js";
+import { SpeciesAccess } from "../src/domain/access.js";
 import { ChatService } from "../src/domain/chat-service.js";
 import type { Broadcaster, ChatInput } from "../src/domain/chat-service.js";
 import { seededRng } from "../src/domain/rng.js";
@@ -56,8 +57,19 @@ export class RecordingBroadcaster implements Broadcaster {
 
 export const silentLog = { warn: () => undefined, error: () => undefined };
 
-export function makeCatalog(ids: string[] = ["shiba", "cat", "bunny"]): SpeciesCatalog {
-  return new SpeciesCatalog(ids.map((id) => ({ id, name: id, url: `/assets/species/${id}/species.json` })));
+export function makeCatalog(
+  ids: string[] = ["shiba", "cat", "bunny"],
+  extra: Record<string, { scope?: "general" | "exclusive"; tier?: "free" | "premium" }> = {},
+): SpeciesCatalog {
+  return new SpeciesCatalog(
+    ids.map((id) => ({
+      id,
+      name: id,
+      url: `/assets/species/${id}/species.json`,
+      scope: extra[id]?.scope ?? "general",
+      tier: extra[id]?.tier ?? "free",
+    })),
+  );
 }
 
 export interface Harness {
@@ -80,7 +92,7 @@ export async function makeHarness(opts: { species?: string[]; streamerLogin?: st
   const streamerLogin = opts.streamerLogin ?? "streamer";
   const streamer = await repo.ensureStreamer(handle.db, { login: streamerLogin, displayName: "Streamer" });
   const newService = (): ChatService =>
-    new ChatService({ db: handle.db, broadcaster, species: catalog, clock, rng: seededRng(7), log: silentLog });
+    new ChatService({ db: handle.db, broadcaster, species: catalog, access: new SpeciesAccess(handle.db, catalog, streamer.id), clock, rng: seededRng(7), log: silentLog });
   return {
     handle,
     clock,

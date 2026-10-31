@@ -3,6 +3,7 @@ import type { Db } from "../db/client.js";
 import * as repo from "../db/repo.js";
 import type { SettingsRow } from "../db/schema.js";
 import type { Clock, Rng } from "./rng.js";
+import type { SpeciesAccess } from "./access.js";
 import type { SpeciesCatalog } from "./species.js";
 
 /** Cómo se avisa a los overlays conectados de un streamer. */
@@ -46,6 +47,8 @@ interface StreamerRuntime {
   streamerId: string;
   streamerLogin: string;
   settings: SettingsRow;
+  /** Especies que este canal puede usar (según su plan y sus permisos). */
+  allowed: Set<string>;
   ignored: Set<string>;
   byTwitchId: Map<string, CachedViewer>;
   byId: Map<string, CachedViewer>;
@@ -57,6 +60,7 @@ export interface ChatServiceDeps {
   db: Db;
   broadcaster: Broadcaster;
   species: SpeciesCatalog;
+  access: SpeciesAccess;
   clock: Clock;
   rng: Rng;
   log: Logger;
@@ -183,6 +187,26 @@ export class ChatService {
     this.enforceCap(rt, undefined);
   }
 
+  /**
+   * Tras cambiar el plan o los permisos de un canal: recalcula qué especies puede usar y pasa a una
+   * permitida (al azar) a quien tenía una que ya no le corresponde. Devuelve cuántas mascotas cambió.
+   */
+  async refreshAccess(streamerId: string): Promise<number> {
+    const rt = await this.runtime(streamerId);
+    rt.allowed = await this.deps.access.allowedIds(streamerId);
+    if (rt.settings.defaultSpeciesId && !rt.allowed.has(rt.settings.defaultSpeciesId)) {
+      await repo.updateSettings(this.deps.db, streamerId, { defaultSpeciesId: null });
+      await this.refreshSettings(streamerId);
+    }
+    const outside = await repo.listPetsOutside(this.deps.db, streamerId, [...rt.allowed]);
+    for (const p of outside) {
+      const speciesId = this.deps.species.pick(this.deps.rng, null, rt.allowed);
+      await repo.updatePet(this.deps.db, streamerId, p.viewerId, { speciesId });
+      await this.applyPetChange(streamerId, p.viewerId);
+    }
+    return outside.length;
+  }
+
   /** Recarga la mascota de un espectador tras un cambio desde el dashboard y avisa al overlay. */
   async applyPetChange(streamerId: string, viewerId: string): Promise<void> {
     const rt = await this.runtime(streamerId);
@@ -226,6 +250,7 @@ export class ChatService {
       streamerId,
       streamerLogin: streamer.login.toLowerCase(),
       settings,
+      allowed: await this.deps.access.allowedIds(streamerId),
       ignored: new Set(settings.ignoredLogins.map((l) => l.toLowerCase())),
       byTwitchId: new Map(),
       byId: new Map(),
@@ -260,7 +285,7 @@ export class ChatService {
     if (found?.pet) {
       row = found as repo.ViewerWithPet;
     } else {
-      const speciesId = this.deps.species.pick(this.deps.rng, rt.settings.defaultSpeciesId);
+      const speciesId = this.deps.species.pick(this.deps.rng, rt.settings.defaultSpeciesId, rt.allowed);
       const res = await repo.createViewerWithPet(
         this.deps.db,
         rt.streamerId,

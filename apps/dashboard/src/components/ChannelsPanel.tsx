@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, describeError } from "../api";
-import type { ChannelItem } from "../api";
+import type { ChannelItem, Plan, Species } from "../api";
 
-/** Quién puede entrar con Twitch. Solo lo ve quien administra. */
-export function ChannelsPanel() {
+/** Quién puede entrar con Twitch, con qué plan y con qué especies exclusivas. Solo lo ve quien administra. */
+export function ChannelsPanel({ species }: { species: Species[] }) {
   const [items, setItems] = useState<ChannelItem[]>([]);
   const [login, setLogin] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
+
+  const exclusive = species.filter((s) => s.scope === "exclusive");
 
   const load = useCallback(async () => {
     try {
@@ -59,11 +62,34 @@ export function ChannelsPanel() {
     void run(() => api.removeChannel(c.login));
   };
 
+  const setPlan = (c: ChannelItem, plan: Plan) => {
+    if (plan === c.plan) return;
+    if (
+      plan === "free" &&
+      !window.confirm(
+        `¿Pasar a @${c.login} al plan gratis? Las mascotas de sus espectadores que usen especies premium pasarán a otra especie disponible.`,
+      )
+    )
+      return;
+    void run(async () => void (await api.patchChannel(c.login, { plan })));
+  };
+
+  const toggleSpecies = (c: ChannelItem, id: string, on: boolean) => {
+    if (
+      !on &&
+      !window.confirm(`¿Quitarle esta especie a @${c.login}? Sus espectadores que la usen pasarán a otra especie disponible.`)
+    )
+      return;
+    const next = on ? [...c.species, id] : c.species.filter((x) => x !== id);
+    void run(async () => void (await api.patchChannel(c.login, { species: next })));
+  };
+
   return (
     <section>
       <p className="muted">
         Solo los canales de esta lista pueden entrar con Twitch. Escribe el usuario de Twitch de quien quieras invitar; cada persona
-        administra sus propias mascotas y su propio enlace de OBS.
+        administra sus propias mascotas y su propio enlace de OBS. El plan decide si puede usar las especies <em>premium</em>, y las
+        especies <em>exclusivas</em> se le dan canal por canal.
       </p>
       {error && <p className="error" role="alert">{error}</p>}
 
@@ -86,31 +112,84 @@ export function ChannelsPanel() {
             <tr>
               <th>Canal</th>
               <th>Estado</th>
+              <th>Plan</th>
+              <th>Especies exclusivas</th>
               <th>Último ingreso</th>
               <th />
             </tr>
           </thead>
           <tbody>
             {items.map((c) => (
-              <tr key={c.login}>
-                <td>
-                  <strong>@{c.login}</strong>
-                  {c.owner && <span className="pill sub">TÚ</span>}
-                </td>
-                <td className={c.linked ? "ok" : "muted"}>{c.linked ? "Ya entró" : "Esperando su primer ingreso"}</td>
-                <td className="muted">{c.lastLoginAt ? new Date(c.lastLoginAt).toLocaleString("es-CL") : "—"}</td>
-                <td className="actions">
-                  {!c.owner && (
-                    <button className="danger" disabled={busy} onClick={() => remove(c)}>
-                      Quitar
-                    </button>
-                  )}
-                </td>
-              </tr>
+              <Fragment key={c.login}>
+                <tr>
+                  <td>
+                    <strong>@{c.login}</strong>
+                    {c.owner && <span className="pill sub">TÚ</span>}
+                  </td>
+                  <td className={c.linked ? "ok" : "muted"}>{c.linked ? "Ya entró" : "Esperando su primer ingreso"}</td>
+                  <td>
+                    {c.owner ? (
+                      <span className="muted">Todo incluido</span>
+                    ) : (
+                      <select
+                        aria-label={`Plan de ${c.login}`}
+                        value={c.plan}
+                        disabled={busy}
+                        onChange={(e) => setPlan(c, e.target.value as Plan)}
+                      >
+                        <option value="free">Gratis</option>
+                        <option value="premium">Premium</option>
+                      </select>
+                    )}
+                  </td>
+                  <td>
+                    {c.owner ? (
+                      <span className="muted">Todas</span>
+                    ) : exclusive.length === 0 ? (
+                      <span className="muted">—</span>
+                    ) : (
+                      <button className="ghost" disabled={busy} onClick={() => setOpen(open === c.login ? null : c.login)}>
+                        Especies ({c.species.length}/{exclusive.length})
+                      </button>
+                    )}
+                  </td>
+                  <td className="muted">{c.lastLoginAt ? new Date(c.lastLoginAt).toLocaleString("es-CL") : "—"}</td>
+                  <td className="actions">
+                    {!c.owner && (
+                      <button className="danger" disabled={busy} onClick={() => remove(c)}>
+                        Quitar
+                      </button>
+                    )}
+                  </td>
+                </tr>
+                {open === c.login && !c.owner && (
+                  <tr className="subrow">
+                    <td colSpan={6}>
+                      <div className="grants">
+                        {exclusive.map((s) => (
+                          <label key={s.id} className="check">
+                            <input
+                              type="checkbox"
+                              aria-label={`${s.name} para ${c.login}`}
+                              checked={c.species.includes(s.id)}
+                              disabled={busy}
+                              onChange={(e) => toggleSpecies(c, s.id, e.target.checked)}
+                            />
+                            <span>
+                              {s.name}
+                              {s.tier === "premium" && <small className="muted"> · además necesita plan premium</small>}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
             {loaded && items.length === 0 && (
               <tr>
-                <td colSpan={4} className="empty">Aún no hay canales autorizados.</td>
+                <td colSpan={6} className="empty">Aún no hay canales autorizados.</td>
               </tr>
             )}
           </tbody>

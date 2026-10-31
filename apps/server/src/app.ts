@@ -10,6 +10,7 @@ import type { Db } from "./db/client.js";
 import { ChatService } from "./domain/chat-service.js";
 import { mathRng, systemClock } from "./domain/rng.js";
 import type { Clock, Rng } from "./domain/rng.js";
+import { SpeciesAccess } from "./domain/access.js";
 import type { SpeciesCatalog } from "./domain/species.js";
 import type { TwitchOAuth } from "./auth/twitch-oauth.js";
 import { registerAdminRoutes } from "./http/admin.js";
@@ -113,6 +114,7 @@ export async function buildApp(opts: AppOptions): Promise<BuiltApp> {
   });
 
   // ── Servicio de chat y hub de overlays ──
+  const access = new SpeciesAccess(opts.db, opts.species, opts.streamerId);
   let service!: ChatService;
   const hub = new OverlayHub(opts.db, async (streamerId) => {
     const s = await service.snapshot(streamerId);
@@ -122,6 +124,7 @@ export async function buildApp(opts: AppOptions): Promise<BuiltApp> {
     db: opts.db,
     broadcaster: hub,
     species: opts.species,
+    access,
     clock: opts.clock ?? systemClock,
     rng: opts.rng ?? mathRng,
     log: app.log,
@@ -157,6 +160,7 @@ export async function buildApp(opts: AppOptions): Promise<BuiltApp> {
     service,
     hub,
     species: opts.species,
+    access,
     adminToken: opts.adminToken,
     streamerId: opts.streamerId,
     ownerLogin: opts.ownerLogin,

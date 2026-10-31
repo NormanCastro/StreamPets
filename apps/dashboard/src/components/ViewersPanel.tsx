@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, describeError } from "../api";
+import { api, describeError, speciesLabel } from "../api";
 import type { Role, Species, ViewerCounts, ViewerItem } from "../api";
 
 const PAGE_SIZE = 25;
@@ -176,8 +176,8 @@ export function ViewersPanel({ species }: { species: Species[] }) {
                       >
                         {!known && <option value={speciesId}>{speciesId} (no disponible)</option>}
                         {species.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
+                          <option key={s.id} value={s.id} disabled={s.locked && s.id !== speciesId}>
+                            {speciesLabel(s)}
                           </option>
                         ))}
                       </select>

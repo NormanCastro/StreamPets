@@ -1,10 +1,11 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { LIMITS, SpeciesIdSchema, TwitchLoginSchema } from "@streampets/shared";
+import { LIMITS, PlanSchema, SpeciesIdSchema, TwitchLoginSchema } from "@streampets/shared";
 import type { Db } from "../db/client.js";
 import * as repo from "../db/repo.js";
-import type { OverlayRow, SettingsRow } from "../db/schema.js";
+import type { AllowedChannelRow, OverlayRow, SettingsRow } from "../db/schema.js";
 import type { ChatService } from "../domain/chat-service.js";
+import type { SpeciesAccess } from "../domain/access.js";
 import type { SpeciesCatalog } from "../domain/species.js";
 import { generateOverlayToken } from "../lib/tokens.js";
 import { authenticate, cookieName, serializeCookie } from "./auth.js";
@@ -16,6 +17,7 @@ export interface AdminDeps {
   service: ChatService;
   hub: OverlayHub;
   species: SpeciesCatalog;
+  access: SpeciesAccess;
   adminToken: string;
   /** Streamer al que da acceso el ADMIN_TOKEN (el dueño de la instalación). */
   streamerId: string;
@@ -101,7 +103,7 @@ function publicOverlay(o: OverlayRow) {
 }
 
 export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void {
-  const { db, service, hub, species } = deps;
+  const { db, service, hub, species, access } = deps;
 
   app.register(
     async (admin) => {
@@ -142,7 +144,23 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
         return {
           streamer: streamer ? { login: streamer.login, displayName: streamer.displayName } : null,
           role: role(req),
+          plan: (await access.info(sid(req))).plan,
           twitch: deps.twitchStatus(sid(req), role(req)),
+        };
+      });
+
+      // Catálogo con lo que este canal puede y no puede usar (lo bloqueado se muestra, pero no se puede elegir).
+      admin.get("/species", async (req) => {
+        const allowed = await access.allowedIds(sid(req));
+        return {
+          species: species.list().map((e) => ({
+            id: e.id,
+            name: e.name,
+            url: e.url,
+            scope: e.scope,
+            tier: e.tier,
+            locked: !allowed.has(e.id),
+          })),
         };
       });
 
@@ -157,18 +175,21 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
       });
 
       // ── Canales autorizados (solo el administrador) ──
+      const channelItem = (r: AllowedChannelRow, grants: string[]) => ({
+        login: r.login,
+        linked: r.twitchUserId !== null,
+        owner: r.login === deps.ownerLogin,
+        plan: repo.asPlan(r.plan),
+        species: grants,
+        createdAt: r.createdAt,
+        lastLoginAt: r.lastLoginAt,
+      });
+
       admin.get("/channels", async (req, reply) => {
         if (!onlyAdmin(req, reply)) return reply;
         const rows = await repo.listAllowedChannels(db);
-        return {
-          items: rows.map((r) => ({
-            login: r.login,
-            linked: r.twitchUserId !== null,
-            owner: r.login === deps.ownerLogin,
-            createdAt: r.createdAt,
-            lastLoginAt: r.lastLoginAt,
-          })),
-        };
+        const grants = await repo.listChannelGrants(db);
+        return { items: rows.map((r) => channelItem(r, grants.get(r.id) ?? [])) };
       });
 
       admin.post("/channels", async (req, reply) => {
@@ -176,13 +197,43 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
         const body = parse(z.object({ login: TwitchLoginSchema }).strict(), req.body, reply);
         if (!body) return reply;
         const row = await repo.addAllowedChannel(db, body.login);
-        return reply.code(201).send({
-          login: row.login,
-          linked: row.twitchUserId !== null,
-          owner: row.login === deps.ownerLogin,
-          createdAt: row.createdAt,
-          lastLoginAt: row.lastLoginAt,
-        });
+        const grants = await repo.listChannelGrants(db);
+        return reply.code(201).send(channelItem(row, grants.get(row.id) ?? []));
+      });
+
+      // Plan y especies exclusivas de un canal.
+      admin.patch("/channels/:login", async (req, reply) => {
+        if (!onlyAdmin(req, reply)) return reply;
+        const params = parse(z.object({ login: TwitchLoginSchema }), req.params, reply);
+        if (!params) return reply;
+        const body = parse(
+          z
+            .object({ plan: PlanSchema.optional(), species: z.array(SpeciesIdSchema).max(100).optional() })
+            .strict()
+            .refine((b) => b.plan !== undefined || b.species !== undefined, "nada que cambiar"),
+          req.body,
+          reply,
+        );
+        if (!body) return reply;
+        if (params.login === deps.ownerLogin) return fail(reply, 400, "owner");
+        const list = body.species !== undefined ? [...new Set(body.species)] : undefined;
+        if (list) {
+          for (const id of list) {
+            const e = species.list().find((x) => x.id === id);
+            if (!e) return fail(reply, 400, "unknown_species");
+            if (e.scope !== "exclusive") return fail(reply, 400, "not_exclusive");
+          }
+        }
+        const found = (await repo.listAllowedChannels(db)).find((r) => r.login === params.login);
+        if (!found) return fail(reply, 404, "not_found");
+        if (body.plan !== undefined) await repo.setChannelPlan(db, params.login, body.plan);
+        if (list) await repo.setChannelSpecies(db, params.login, list);
+        // Quien pierde una especie pasa a una permitida, y el overlay se entera al instante.
+        const streamer = await repo.findStreamerForAllowed(db, found);
+        if (streamer) await service.refreshAccess(streamer.id);
+        const row = (await repo.listAllowedChannels(db)).find((r) => r.login === params.login) as AllowedChannelRow;
+        const grants = await repo.listChannelGrants(db);
+        return channelItem(row, grants.get(row.id) ?? []);
       });
 
       admin.delete("/channels/:login", async (req, reply) => {
@@ -237,6 +288,9 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
         if (body.speciesId !== undefined && !species.has(body.speciesId)) {
           return fail(reply, 400, "unknown_species");
         }
+        if (body.speciesId !== undefined && !(await access.isAllowed(sid(req), body.speciesId))) {
+          return fail(reply, 403, "species_locked");
+        }
         const patch: repo.PetPatch = {};
         if (body.speciesId !== undefined) patch.speciesId = body.speciesId;
         if (body.enabled !== undefined) patch.enabled = body.enabled;
@@ -254,6 +308,9 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
         if (!body) return reply;
         if (body.defaultSpeciesId && !species.has(body.defaultSpeciesId)) {
           return fail(reply, 400, "unknown_species");
+        }
+        if (body.defaultSpeciesId && !(await access.isAllowed(sid(req), body.defaultSpeciesId))) {
+          return fail(reply, 403, "species_locked");
         }
         const patch: repo.SettingsPatch = {};
         if (body.ignoredLogins !== undefined) patch.ignoredLogins = [...new Set(body.ignoredLogins)];

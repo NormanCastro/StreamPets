@@ -32,11 +32,17 @@ export class SpeciesCatalog {
     return this.byId.has(id);
   }
 
-  /** Especie preferida si existe; si no, una al azar. */
-  pick(rng: Rng, preferredId?: string | null): string {
-    if (preferredId && this.byId.has(preferredId)) return preferredId;
-    const i = Math.min(Math.floor(rng.next() * this.entries.length), this.entries.length - 1);
-    return (this.entries[i] as SpeciesEntry).id;
+  /**
+   * Especie preferida si existe (y está permitida); si no, una al azar entre las permitidas.
+   * `allowed` limita la elección a esas especies; si queda vacío se usa todo el catálogo.
+   */
+  pick(rng: Rng, preferredId?: string | null, allowed?: ReadonlySet<string>): string {
+    const ok = (id: string) => this.byId.has(id) && (allowed === undefined || allowed.has(id));
+    if (preferredId && ok(preferredId)) return preferredId;
+    const pool = this.entries.filter((e) => ok(e.id));
+    const list = pool.length > 0 ? pool : this.entries;
+    const i = Math.min(Math.floor(rng.next() * list.length), list.length - 1);
+    return (list[i] as SpeciesEntry).id;
   }
 
   /** Especie a mostrar cuando la guardada ya no existe en el catálogo. */

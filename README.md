@@ -181,6 +181,22 @@ El panel (`/admin`) tiene dos formas de entrar:
 node scripts/e2e-login.mjs   # login completo en Chromium contra un Twitch de mentira local
 ```
 
+## Especies: generales, exclusivas, gratis y premium
+
+Cada especie en `shared-public/assets/species/index.json` puede llevar dos datos (si faltan, valen `general` y `free`):
+
+```json
+{ "id": "dragon", "name": "Dragón", "url": "...", "scope": "general", "tier": "premium" }
+```
+
+- `scope`: `general` (cualquier canal) o `exclusive` (solo los canales que el administrador elija).
+- `tier`: `free` (todos) o `premium` (solo canales con plan premium).
+- Una especie `exclusive` y `premium` a la vez exige las dos cosas: estar listada para ese canal **y** tener plan premium.
+
+El plan y las especies exclusivas se manejan en la pestaña **Canales** (solo con la clave de administración), también para canales que todavía no han entrado. El canal del dueño lo puede usar todo.
+
+Lo aplica el **servidor**, no solo el panel: las mascotas nuevas se eligen solo entre las especies del canal, y elegir una bloqueada devuelve 403. Si un canal pierde una especie (le quitas el premium o el permiso), sus espectadores que la usaban pasan a otra especie permitida al instante. El overlay puede cargar cualquier sprite (los archivos son públicos): lo que se controla es quién puede *asignarla*.
+
 ## Pendiente
 
 - Probar el login contra el Twitch real (en pruebas se usa un Twitch simulado); cambiar la clave `ADMIN_TOKEN` compartida cuando ya no haga falta.

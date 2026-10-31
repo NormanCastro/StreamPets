@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api, describeError } from "../api";
+import { api, describeError, speciesLabel } from "../api";
 import type { Settings, Species } from "../api";
 
 interface Draft {
@@ -100,10 +100,10 @@ export function SettingsPanel({ species }: { species: Species[] }) {
       <label>
         Especie para los nuevos
         <select value={draft.defaultSpeciesId} onChange={(e) => set("defaultSpeciesId", e.target.value)}>
-          <option value="">Al azar entre todas</option>
+          <option value="">Al azar entre las disponibles</option>
           {species.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
+            <option key={s.id} value={s.id} disabled={s.locked && s.id !== draft.defaultSpeciesId}>
+              {speciesLabel(s)}
             </option>
           ))}
         </select>

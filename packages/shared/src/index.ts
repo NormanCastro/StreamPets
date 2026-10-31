@@ -7,6 +7,16 @@ import { z } from "zod";
 /** Id de especie: minúsculas, números, guion y guion bajo. */
 export const SpeciesIdSchema = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,39}$/, "id de especie inválido");
 
+/** general = la puede usar cualquier canal; exclusive = solo los canales que el administrador elija. */
+export const SpeciesScopeSchema = z.enum(["general", "exclusive"]);
+export type SpeciesScope = z.infer<typeof SpeciesScopeSchema>;
+/** free = incluida en el plan gratis; premium = solo canales con plan premium. */
+export const SpeciesTierSchema = z.enum(["free", "premium"]);
+export type SpeciesTier = z.infer<typeof SpeciesTierSchema>;
+/** Plan de un canal. */
+export const PlanSchema = z.enum(["free", "premium"]);
+export type Plan = z.infer<typeof PlanSchema>;
+
 export const SpeciesIndexSchema = z.object({
   species: z
     .array(
@@ -15,6 +25,10 @@ export const SpeciesIndexSchema = z.object({
         name: z.string().min(1).max(60),
         /** URL (relativa al servidor) del species.json de la especie. */
         url: z.string().min(1).max(300),
+        /** Quién puede usarla. Si no se indica, cualquier canal. */
+        scope: SpeciesScopeSchema.default("general"),
+        /** Plan que la incluye. Si no se indica, gratis. */
+        tier: SpeciesTierSchema.default("free"),
       }),
     )
     .min(1),

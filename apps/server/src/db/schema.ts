@@ -37,9 +37,25 @@ export const allowedChannels = pgTable("allowed_channels", {
   id: uuid("id").primaryKey().defaultRandom(),
   login: text("login").notNull().unique(),
   twitchUserId: text("twitch_user_id").unique(),
+  /** "free" o "premium": decide qué especies de nivel premium puede usar el canal. */
+  plan: text("plan").notNull().default("free"),
   createdAt: createdAt(),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
 });
+
+/** Especies exclusivas que un canal tiene permitidas (se conservan aunque el canal aún no haya entrado). */
+export const speciesAccess = pgTable(
+  "species_access",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    allowedChannelId: uuid("allowed_channel_id")
+      .notNull()
+      .references(() => allowedChannels.id, { onDelete: "cascade" }),
+    speciesId: text("species_id").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [unique("species_access_channel_species_uq").on(t.allowedChannelId, t.speciesId)],
+);
 
 /** Sesiones del dashboard. Solo se guarda el hash del token de la cookie, nunca el token. */
 export const sessions = pgTable(
