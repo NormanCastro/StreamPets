@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { LogoFull } from "./Logo";
+import { ThemePicker } from "./ThemePicker";
 import { api, describeError, setToken } from "../api";
 
 const LOGIN_ERRORS: Record<string, string> = {
@@ -54,6 +55,7 @@ export function Login({ onLogin, notice }: { onLogin: () => void; notice?: strin
 
   return (
     <div className="login">
+      <ThemePicker floating />
       <div className="login-box">
         <LogoFull />
         <div className="card login-card">

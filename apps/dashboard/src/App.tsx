@@ -4,6 +4,7 @@ import type { Me, Species } from "./api";
 import { ChannelsPanel } from "./components/ChannelsPanel";
 import { Login, loginErrorMessage } from "./components/Login";
 import { Logo } from "./components/Logo";
+import { ThemePicker } from "./components/ThemePicker";
 import { OverlaysPanel } from "./components/OverlaysPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { ViewersPanel } from "./components/ViewersPanel";
@@ -112,6 +113,7 @@ export function App() {
             </button>
           ))}
         </nav>
+        <ThemePicker />
         {me.streamer && (
           <span className="who" title={me.role === "admin" ? "Administración" : "Sesión de Twitch"}>
             @{me.streamer.login}
