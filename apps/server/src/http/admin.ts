@@ -6,7 +6,9 @@ import * as repo from "../db/repo.js";
 import type { OverlayRow, SettingsRow } from "../db/schema.js";
 import type { ChatService } from "../domain/chat-service.js";
 import type { SpeciesCatalog } from "../domain/species.js";
-import { generateOverlayToken, safeEqual } from "../lib/tokens.js";
+import { generateOverlayToken } from "../lib/tokens.js";
+import { authenticate, cookieName, serializeCookie } from "./auth.js";
+import type { AuthSettings, Role } from "./auth.js";
 import type { OverlayHub } from "./hub.js";
 
 export interface AdminDeps {
@@ -15,15 +17,24 @@ export interface AdminDeps {
   hub: OverlayHub;
   species: SpeciesCatalog;
   adminToken: string;
-  /** Streamer al que da acceso el ADMIN_TOKEN (provisional hasta tener login con Twitch). */
+  /** Streamer al que da acceso el ADMIN_TOKEN (el dueño de la instalación). */
   streamerId: string;
+  /** Login del dueño: su canal siempre está autorizado y no se puede quitar. */
+  ownerLogin: string;
+  auth: AuthSettings;
   enableDevChat: boolean;
-  twitchStatus: () => unknown;
+  /** Estado del lector de chat: completo para el administrador, resumido para un streamer. */
+  twitchStatus: (streamerId: string, role: Role) => unknown;
+  /** Se llama al quitarle el permiso a un canal (para dejar de leer su chat). */
+  onChannelRemoved?: (streamerId: string) => void;
+  now?: () => Date;
 }
 
 declare module "fastify" {
   interface FastifyRequest {
     streamerId?: string;
+    role?: Role;
+    sessionHash?: string;
   }
 }
 
@@ -63,12 +74,6 @@ const DevChatBody = z
   })
   .strict();
 
-function bearer(req: FastifyRequest): string | undefined {
-  const h = req.headers.authorization;
-  if (!h || !h.startsWith("Bearer ")) return undefined;
-  return h.slice(7).trim();
-}
-
 function fail(reply: FastifyReply, status: number, error: string, details?: unknown): FastifyReply {
   return reply.code(status).send({ error, ...(details === undefined ? {} : { details }) });
 }
@@ -101,12 +106,20 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
   app.register(
     async (admin) => {
       admin.addHook("onRequest", async (req, reply) => {
-        const token = bearer(req);
-        if (!token || !safeEqual(token, deps.adminToken)) {
-          reply.header("WWW-Authenticate", "Bearer");
-          return fail(reply, 401, "unauthorized");
+        const r = await authenticate(req, {
+          db,
+          adminToken: deps.adminToken,
+          ownerStreamerId: deps.streamerId,
+          auth: deps.auth,
+          ...(deps.now ? { now: deps.now } : {}),
+        });
+        if (!r.ok) {
+          if (r.status === 401) reply.header("WWW-Authenticate", "Bearer");
+          return fail(reply, r.status, r.error);
         }
-        req.streamerId = deps.streamerId;
+        req.streamerId = r.principal.streamerId;
+        req.role = r.principal.role;
+        if (r.principal.sessionHash !== undefined) req.sessionHash = r.principal.sessionHash;
         return undefined;
       });
       // Nada de lo administrativo debe guardarse en cachés.
@@ -117,12 +130,75 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
 
       const sid = (req: FastifyRequest): string => req.streamerId as string;
 
+      const role = (req: FastifyRequest): Role => req.role as Role;
+      const onlyAdmin = (req: FastifyRequest, reply: FastifyReply): boolean => {
+        if (role(req) === "admin") return true;
+        fail(reply, 403, "forbidden");
+        return false;
+      };
+
       admin.get("/me", async (req) => {
         const streamer = await repo.getStreamer(db, sid(req));
         return {
           streamer: streamer ? { login: streamer.login, displayName: streamer.displayName } : null,
-          twitch: deps.twitchStatus(),
+          role: role(req),
+          twitch: deps.twitchStatus(sid(req), role(req)),
         };
+      });
+
+      // Cerrar sesión: borra la sesión del servidor y la cookie. Con la clave de administración no hay nada que cerrar.
+      admin.post("/logout", async (req, reply) => {
+        if (req.sessionHash !== undefined) await repo.deleteSession(db, req.sessionHash);
+        reply.header(
+          "Set-Cookie",
+          serializeCookie(cookieName("sp_session", deps.auth.cookieSecure), "", { secure: deps.auth.cookieSecure, maxAgeSec: 0 }),
+        );
+        return reply.code(204).send();
+      });
+
+      // ── Canales autorizados (solo el administrador) ──
+      admin.get("/channels", async (req, reply) => {
+        if (!onlyAdmin(req, reply)) return reply;
+        const rows = await repo.listAllowedChannels(db);
+        return {
+          items: rows.map((r) => ({
+            login: r.login,
+            linked: r.twitchUserId !== null,
+            owner: r.login === deps.ownerLogin,
+            createdAt: r.createdAt,
+            lastLoginAt: r.lastLoginAt,
+          })),
+        };
+      });
+
+      admin.post("/channels", async (req, reply) => {
+        if (!onlyAdmin(req, reply)) return reply;
+        const body = parse(z.object({ login: TwitchLoginSchema }).strict(), req.body, reply);
+        if (!body) return reply;
+        const row = await repo.addAllowedChannel(db, body.login);
+        return reply.code(201).send({
+          login: row.login,
+          linked: row.twitchUserId !== null,
+          owner: row.login === deps.ownerLogin,
+          createdAt: row.createdAt,
+          lastLoginAt: row.lastLoginAt,
+        });
+      });
+
+      admin.delete("/channels/:login", async (req, reply) => {
+        if (!onlyAdmin(req, reply)) return reply;
+        const params = parse(z.object({ login: TwitchLoginSchema }), req.params, reply);
+        if (!params) return reply;
+        if (params.login === deps.ownerLogin) return fail(reply, 400, "owner");
+        const row = await repo.removeAllowedChannel(db, params.login);
+        if (!row) return fail(reply, 404, "not_found");
+        // Se le corta el acceso ya: sus sesiones se cierran y deja de leerse su chat.
+        const streamer = await repo.findStreamerForAllowed(db, row);
+        if (streamer) {
+          await repo.deleteSessionsForStreamer(db, streamer.id);
+          deps.onChannelRemoved?.(streamer.id);
+        }
+        return reply.code(204).send();
       });
 
       // ── Mascotas de los espectadores ──

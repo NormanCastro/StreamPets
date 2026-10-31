@@ -8,7 +8,7 @@ import { TwitchChatClient, nextDelay } from "../src/twitch/chat-client.js";
 import type { TwitchChatClientOptions } from "../src/twitch/chat-client.js";
 import { parseIrcLine, toChatMessage } from "../src/twitch/irc.js";
 import type { TwitchChatMessage } from "../src/twitch/irc.js";
-import { startTwitchChat } from "../src/twitch/start.js";
+import { TwitchChatManager } from "../src/twitch/start.js";
 import { makeHarness } from "./helpers.js";
 import type { Harness } from "./helpers.js";
 
@@ -77,6 +77,7 @@ describe("toChatMessage", () => {
 
   it("extrae usuario, nombre y estado de suscriptor", () => {
     expect(get(privmsg("luna", "123", { badges: "subscriber/6,premium/1", display: "Luna" }))).toEqual({
+      channel: "canal",
       userId: "123",
       login: "luna",
       displayName: "Luna",
@@ -173,7 +174,7 @@ afterEach(async () => {
 function mk(over: Partial<TwitchChatClientOptions> = {}): { client: TwitchChatClient; got: TwitchChatMessage[] } {
   const got: TwitchChatMessage[] = [];
   client = new TwitchChatClient({
-    channel: "canal",
+    channels: ["canal"],
     url: irc.url,
     onMessage: (m) => got.push(m),
     log: silent,
@@ -214,7 +215,7 @@ describe("TwitchChatClient", () => {
   it("pasa a 'joined' al recibir ROOMSTATE", async () => {
     const { client: c } = mk();
     await waitFor(() => c.status().state === "joined");
-    expect(c.status()).toMatchObject({ state: "joined", channel: "canal", authenticated: false, reconnects: 0 });
+    expect(c.status()).toMatchObject({ state: "joined", channels: ["canal"], joinedChannels: 1, authenticated: false, reconnects: 0 });
   });
 
   it("entrega los mensajes de chat con su estado de sub y descarta el resto", async () => {
@@ -228,8 +229,8 @@ describe("TwitchChatClient", () => {
     ]);
     await waitFor(() => got.length === 2);
     expect(got).toEqual([
-      { userId: "100", login: "luna", displayName: "Luna", isSubscriber: true },
-      { userId: "200", login: "kiko", displayName: "kiko", isSubscriber: false },
+      { channel: "canal", userId: "100", login: "luna", displayName: "Luna", isSubscriber: true },
+      { channel: "canal", userId: "200", login: "kiko", displayName: "kiko", isSubscriber: false },
     ]);
     expect(client?.status().messages).toBe(2);
     expect(client?.status().lastMessageAt).not.toBeNull();
@@ -316,6 +317,41 @@ describe("TwitchChatClient", () => {
     expect(sent).toEqual([]);
   });
 
+  it("lee varios canales en una conexión y dice de cuál viene cada mensaje", async () => {
+    const { client: c, got } = mk({ channels: ["uno", "dos"], joinIntervalMs: 5 });
+    await waitFor(() => c.status().joinedChannels === 2);
+    expect(irc.conns).toHaveLength(1);
+    irc.say([privmsg("luna", "100", { channel: "uno" }), privmsg("kiko", "200", { channel: "dos" })]);
+    await waitFor(() => got.length === 2);
+    expect(got.map((m) => [m.channel, m.login])).toEqual([
+      ["uno", "luna"],
+      ["dos", "kiko"],
+    ]);
+  });
+
+  it("join() y part() cambian los canales en caliente; lo de un canal abandonado se descarta", async () => {
+    const { client: c, got } = mk({ joinIntervalMs: 5 });
+    await waitFor(() => c.status().state === "joined");
+    c.join("otro");
+    await waitFor(() => c.isJoined("otro"));
+    expect(irc.conns[0]?.lines).toContain("JOIN #otro");
+    c.part("otro");
+    await waitFor(() => (irc.conns[0]?.lines ?? []).includes("PART #otro"));
+    expect(c.isJoined("otro")).toBe(false);
+    irc.say([privmsg("luna", "100", { channel: "otro" }), privmsg("kiko", "200", { channel: "canal" })]);
+    await waitFor(() => got.length === 1);
+    await wait(100);
+    expect(got.map((m) => m.login)).toEqual(["kiko"]);
+  });
+
+  it("tras reconectar vuelve a entrar a todos los canales", async () => {
+    const { client: c } = mk({ channels: ["uno", "dos"], joinIntervalMs: 5 });
+    await waitFor(() => c.status().joinedChannels === 2);
+    irc.conns[0]?.ws.terminate();
+    await waitFor(() => irc.conns.length === 2 && c.status().joinedChannels === 2);
+    expect(irc.conns[1]?.lines).toEqual(expect.arrayContaining(["JOIN #uno", "JOIN #dos"]));
+  });
+
   it("un error dentro de onMessage no tumba la conexión", async () => {
     let calls = 0;
     const { client: c } = mk({
@@ -335,27 +371,29 @@ describe("TwitchChatClient", () => {
 
 describe("chat de Twitch -> mascotas", () => {
   let h: Harness;
+  let manager: TwitchChatManager | undefined;
   beforeEach(async () => {
     irc = await FakeIrc.start();
     h = await makeHarness({ streamerLogin: "canal" });
   });
   afterEach(async () => {
-    client?.stop();
-    client = undefined;
+    manager?.stop();
+    manager = undefined;
     await h.handle.close();
   });
 
   const start = () => {
-    client = startTwitchChat({
+    manager = new TwitchChatManager({
       service: h.service,
-      streamerId: h.streamerId,
-      channel: "canal",
       url: irc.url,
       log: silent,
       backoffMinMs: 20,
       backoffMaxMs: 80,
+      joinIntervalMs: 5,
     });
-    return client;
+    manager.start();
+    manager.add(h.streamerId, "canal");
+    return manager;
   };
 
   it("quien escribe recibe mascota; bots y la streamer se ignoran; los subs quedan marcados", async () => {
@@ -402,6 +440,35 @@ describe("chat de Twitch -> mascotas", () => {
     await wait(300);
     expect(await h.service.activeCount(h.streamerId)).toBe(1);
   });
+
+  it("dos canales: cada mensaje llega solo a la streamer de su canal", async () => {
+    const other = await repo.upsertStreamerFromTwitch(h.handle.db, { twitchUserId: "777", login: "amiga" });
+    const c = start();
+    c.add(other.id, "amiga");
+    await waitFor(() => c.status().joinedChannels === 2);
+    irc.say([privmsg("luna", "100", { channel: "canal" }), privmsg("kiko", "200", { channel: "amiga" })]);
+    await waitFor(() => c.status().messages === 2);
+    await wait(300);
+    expect((await h.service.snapshot(h.streamerId)).pets.map((p) => p.name)).toEqual(["luna"]);
+    expect((await h.service.snapshot(other.id)).pets.map((p) => p.name)).toEqual(["kiko"]);
+  });
+
+  it("remove() deja de leer ese canal; statusFor no filtra datos de los demás", async () => {
+    const other = await repo.upsertStreamerFromTwitch(h.handle.db, { twitchUserId: "777", login: "amiga" });
+    const c = start();
+    c.add(other.id, "amiga");
+    await waitFor(() => c.status().joinedChannels === 2);
+    expect(c.statusFor(other.id)).toEqual({ state: "joined", reading: true });
+    expect(Object.keys(c.statusFor(other.id)).sort()).toEqual(["reading", "state"]);
+
+    c.remove(other.id);
+    expect(c.statusFor(other.id).reading).toBe(false);
+    await waitFor(() => (irc.conns[0]?.lines ?? []).includes("PART #amiga"));
+    irc.say([privmsg("kiko", "200", { channel: "amiga" }), privmsg("luna", "100", { channel: "canal" })]);
+    await wait(300);
+    expect((await h.service.snapshot(other.id)).pets).toEqual([]);
+    expect((await h.service.snapshot(h.streamerId)).pets.map((p) => p.name)).toEqual(["luna"]);
+  });
 });
 
 // ───────────────────────────── configuración ─────────────────────────────
@@ -445,5 +512,45 @@ describe("configuración de Twitch", () => {
 
   it("con el chat apagado no valida nada de Twitch", () => {
     expect(() => loadConfig({ ...base, TWITCH_OAUTH_TOKEN: "x" })).not.toThrow();
+  });
+});
+
+describe("configuración del login con Twitch", () => {
+  const base = { NODE_ENV: "test" };
+  const ok = { TWITCH_CLIENT_ID: "abc", TWITCH_CLIENT_SECRET: "xyz", PUBLIC_URL: "https://streampets.live/" };
+
+  it("viene apagado por defecto", () => {
+    const c = loadConfig({ ...base });
+    expect(c.twitchLogin).toBeUndefined();
+    expect(c.publicOrigin).toBeUndefined();
+  });
+
+  it("con los tres datos arma la dirección de retorno y cookies seguras", () => {
+    const c = loadConfig({ ...base, ...ok });
+    expect(c.twitchLogin).toMatchObject({ clientId: "abc", clientSecret: "xyz", redirectUri: "https://streampets.live/auth/twitch/callback" });
+    expect(c.publicOrigin).toBe("https://streampets.live");
+    expect(c.cookieSecure).toBe(true);
+  });
+
+  it("los tres van juntos", () => {
+    expect(() => loadConfig({ ...base, TWITCH_CLIENT_ID: "abc" })).toThrow(/van juntos/);
+    expect(() => loadConfig({ ...base, ...ok, PUBLIC_URL: undefined })).toThrow(/van juntos/);
+  });
+
+  it("exige https (http solo en localhost) y no admite localhost en producción", () => {
+    expect(() => loadConfig({ ...base, ...ok, PUBLIC_URL: "http://streampets.live" })).toThrow(/https/);
+    expect(() => loadConfig({ ...base, ...ok, PUBLIC_URL: "nada" })).toThrow(/válida/);
+    const local = loadConfig({ ...base, ...ok, PUBLIC_URL: "http://localhost:3000" });
+    expect(local.cookieSecure).toBe(false);
+    expect(local.twitchLogin?.redirectUri).toBe("http://localhost:3000/auth/twitch/callback");
+    expect(() =>
+      loadConfig({ ...base, ...ok, NODE_ENV: "production", PUBLIC_URL: "http://localhost:3000", ADMIN_TOKEN: "x".repeat(30), DATABASE_URL: "postgres://x" }),
+    ).toThrow(/localhost/);
+  });
+
+  it("la duración de la sesión se configura en días (14 por defecto)", () => {
+    expect(loadConfig({ ...base }).sessionTtlMs).toBe(14 * 86_400_000);
+    expect(loadConfig({ ...base, SESSION_TTL_DAYS: "3" }).sessionTtlMs).toBe(3 * 86_400_000);
+    expect(() => loadConfig({ ...base, SESSION_TTL_DAYS: "0" })).toThrow(ConfigError);
   });
 });

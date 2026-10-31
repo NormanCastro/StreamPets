@@ -41,6 +41,19 @@ export interface OverlayWithToken extends OverlayItem {
   path: string;
 }
 
+export type UserRole = "admin" | "streamer";
+export interface Me {
+  streamer: { login: string; displayName: string } | null;
+  role: UserRole;
+}
+export interface ChannelItem {
+  login: string;
+  linked: boolean;
+  owner: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -55,8 +68,10 @@ export class ApiError extends Error {
 export function describeError(err: unknown): string {
   if (!(err instanceof ApiError)) return "No se pudo conectar con el servidor.";
   if (err.status === 401) return "Clave incorrecta.";
+  if (err.status === 403) return err.code === "owner" ? "Ese es tu canal: no se puede quitar." : "No tienes permiso para hacer eso.";
   if (err.status === 404) return "No encontrado (puede que ya no exista).";
   if (err.status === 429) return "Demasiadas solicitudes, espera un momento.";
+  if (err.status === 400 && err.code === "owner") return "Ese es tu canal: no se puede quitar.";
   if (err.code === "unknown_species") return "Esa especie no existe.";
   if (err.code === "invalid_request" && Array.isArray(err.details)) {
     return (err.details as Array<{ path: string; message: string }>)
@@ -111,11 +126,14 @@ async function request<T>(method: string, path: string, body?: unknown, signal?:
   if (token) headers["authorization"] = `Bearer ${token}`;
   // Fastify rechaza un cuerpo JSON vacío: solo se declara el tipo si hay cuerpo.
   if (body !== undefined) headers["content-type"] = "application/json";
+  // Con la sesión de Twitch (cookie), los cambios llevan esta cabecera: un sitio ajeno no puede enviarla.
+  if (method !== "GET") headers["x-streampets-csrf"] = "1";
   let res: Response;
   try {
     res = await fetch(path, {
       method,
       headers,
+      credentials: "same-origin",
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       ...(signal ? { signal } : {}),
     });
@@ -140,7 +158,12 @@ async function request<T>(method: string, path: string, body?: unknown, signal?:
 }
 
 export const api = {
-  me: () => request<{ streamer: { login: string; displayName: string } | null }>("GET", "/api/admin/me"),
+  me: () => request<Me>("GET", "/api/admin/me"),
+  authStatus: () => request<{ twitch: boolean }>("GET", "/auth/status"),
+  logout: () => request<void>("POST", "/api/admin/logout"),
+  channels: () => request<{ items: ChannelItem[] }>("GET", "/api/admin/channels"),
+  addChannel: (login: string) => request<ChannelItem>("POST", "/api/admin/channels", { login }),
+  removeChannel: (login: string) => request<void>("DELETE", `/api/admin/channels/${encodeURIComponent(login)}`),
   species: () => request<{ species: Species[] }>("GET", "/api/species"),
   viewers: (q: string, role: Role, limit: number, offset: number, signal?: AbortSignal) =>
     request<{ total: number; counts: ViewerCounts; items: ViewerItem[] }>(

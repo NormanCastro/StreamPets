@@ -180,6 +180,28 @@ td select { width: auto; min-width: 140px; padding: 6px 10px; }
 .switch input:focus-visible + span { outline: 2px solid var(--pink); outline-offset: 2px; }
 .switch input:disabled { cursor: not-allowed; }
 
+/* ── Acceso con Twitch ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; text-decoration: none; text-align: center;
+  border-radius: 10px; padding: 11px 16px; font-weight: 700; color: #fff; cursor: pointer;
+}
+.btn.twitch {
+  background: #9146ff; border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 24px -8px rgba(145, 70, 255, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: filter .15s, transform .12s;
+}
+.btn.twitch:hover { filter: brightness(1.12); }
+.btn.twitch:active { transform: translateY(1px); }
+.btn.twitch:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; }
+.small { font-size: 12.5px; }
+.divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.login-key { display: grid; gap: 12px; }
+.who {
+  padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(10, 6, 22, 0.5);
+  color: var(--pink); font-weight: 600; font-size: 13px; white-space: nowrap;
+}
+
 @media (max-width: 640px) {
   .logo-wide { height: 92px; }
   .stats { gap: 8px; }

@@ -21,12 +21,40 @@ const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull(
  */
 export const streamers = pgTable("streamers", {
   id: uuid("id").primaryKey().defaultRandom(),
-  /** Se completa cuando exista el login con Twitch (OAuth). */
+  /** Se completa en el primer ingreso con Twitch (OAuth). */
   twitchUserId: text("twitch_user_id").unique(),
   login: text("login").notNull().unique(),
   displayName: text("display_name").notNull(),
   createdAt: createdAt(),
 });
+
+/**
+ * Canales a los que se permite registrarse. La autorización es por login de Twitch hasta el primer
+ * ingreso; ahí se fija el id numérico (estable) y desde entonces manda el id: si alguien más toma ese
+ * login después, no hereda el acceso.
+ */
+export const allowedChannels = pgTable("allowed_channels", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  login: text("login").notNull().unique(),
+  twitchUserId: text("twitch_user_id").unique(),
+  createdAt: createdAt(),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+});
+
+/** Sesiones del dashboard. Solo se guarda el hash del token de la cookie, nunca el token. */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    streamerId: uuid("streamer_id")
+      .notNull()
+      .references(() => streamers.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    createdAt: createdAt(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("sessions_streamer_idx").on(t.streamerId), index("sessions_expires_idx").on(t.expiresAt)],
+);
 
 export const streamerSettings = pgTable("streamer_settings", {
   streamerId: uuid("streamer_id")
@@ -116,5 +144,7 @@ export const streamersRelations = relations(streamers, ({ many, one }) => ({
 export type StreamerRow = typeof streamers.$inferSelect;
 export type SettingsRow = typeof streamerSettings.$inferSelect;
 export type OverlayRow = typeof overlays.$inferSelect;
+export type AllowedChannelRow = typeof allowedChannels.$inferSelect;
+export type SessionRow = typeof sessions.$inferSelect;
 export type ViewerRow = typeof viewers.$inferSelect;
 export type PetRow = typeof pets.$inferSelect;

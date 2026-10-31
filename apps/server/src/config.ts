@@ -30,6 +30,15 @@ const EnvSchema = z.object({
   TWITCH_OAUTH_TOKEN: z.string().optional(),
   /** Solo para pruebas con un servidor IRC falso. */
   TWITCH_IRC_URL: z.string().optional(),
+  /** Login con Twitch (OpenID Connect). Los tres van juntos; sin ellos solo se entra con la clave de administración. */
+  TWITCH_CLIENT_ID: z.string().optional(),
+  TWITCH_CLIENT_SECRET: z.string().optional(),
+  /** Dirección pública del servicio, p. ej. https://streampets.live (sin barra final). */
+  PUBLIC_URL: z.string().optional(),
+  /** Solo para pruebas con un Twitch falso. */
+  TWITCH_ID_URL: z.string().optional(),
+  /** Duración de la sesión del dashboard. */
+  SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(14),
   /** Orígenes permitidos para CORS (dashboard en otro dominio), separados por coma. */
   ALLOWED_ORIGINS: z.string().default(""),
   ENABLE_DEV_CHAT: bool.optional(),
@@ -58,6 +67,12 @@ export interface Config {
   /** Si es undefined se lee el chat como anónimo. */
   twitchAuth: { login: string; token: string } | undefined;
   streamerDisplayName: string;
+  /** undefined = el login con Twitch no está configurado. */
+  twitchLogin: TwitchLoginConfig | undefined;
+  /** Origen público (https://dominio) si está configurado; se usa para validar de dónde vienen las peticiones con sesión. */
+  publicOrigin: string | undefined;
+  cookieSecure: boolean;
+  sessionTtlMs: number;
   allowedOrigins: string[];
   enableDevChat: boolean;
   trustProxy: boolean;
@@ -65,6 +80,13 @@ export interface Config {
   overlayDist: string;
   dashboardDist: string;
   migrationsDir: string;
+}
+
+export interface TwitchLoginConfig {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  idBaseUrl: string | undefined;
 }
 
 export class ConfigError extends Error {
@@ -120,6 +142,35 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     }
   }
 
+  // Login con Twitch: client id, secret y dirección pública, todo o nada.
+  const loginVars = [e.TWITCH_CLIENT_ID, e.TWITCH_CLIENT_SECRET, e.PUBLIC_URL];
+  const loginSet = loginVars.filter((v) => v !== undefined && v.trim() !== "").length;
+  let twitchLogin: TwitchLoginConfig | undefined;
+  let publicOrigin: string | undefined;
+  if (loginSet !== 0 && loginSet !== 3) {
+    throw new ConfigError("TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET y PUBLIC_URL van juntos: define los tres o ninguno");
+  }
+  if (loginSet === 3) {
+    let url: URL;
+    try {
+      url = new URL((e.PUBLIC_URL as string).trim());
+    } catch {
+      throw new ConfigError("PUBLIC_URL no es una dirección válida (ej: https://streampets.live)");
+    }
+    const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    if (url.protocol !== "https:" && !(local && url.protocol === "http:")) {
+      throw new ConfigError("PUBLIC_URL debe empezar con https:// (http:// solo vale para localhost)");
+    }
+    if (production && local) throw new ConfigError("en producción PUBLIC_URL no puede ser localhost");
+    publicOrigin = url.origin;
+    twitchLogin = {
+      clientId: (e.TWITCH_CLIENT_ID as string).trim(),
+      clientSecret: (e.TWITCH_CLIENT_SECRET as string).trim(),
+      redirectUri: `${url.origin}/auth/twitch/callback`,
+      idBaseUrl: e.TWITCH_ID_URL,
+    };
+  }
+
   return {
     nodeEnv: e.NODE_ENV,
     port: e.PORT,
@@ -135,6 +186,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     twitchIrcUrl: e.TWITCH_IRC_URL,
     twitchAuth,
     streamerDisplayName: e.STREAMER_DISPLAY_NAME,
+    twitchLogin,
+    publicOrigin,
+    cookieSecure: publicOrigin?.startsWith("https:") ?? production,
+    sessionTtlMs: e.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
     allowedOrigins: e.ALLOWED_ORIGINS.split(",")
       .map((s) => s.trim())
       .filter(Boolean),

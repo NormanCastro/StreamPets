@@ -158,7 +158,30 @@ Verificado en la documentación oficial: conexión, `CAP REQ` de tags/commands, 
 **No verificado:** el modo anónimo (`justinfan`) solo está respaldado por foros, no por la documentación; si Twitch lo rechaza, usa el modo con token. Que la insignia `founder` cuente como sub tampoco está confirmado. Tampoco se probó contra Twitch real (el entorno de desarrollo no llega a Twitch): solo contra un servidor IRC falso en los tests.
 Twitch recomienda EventSub para chat nuevo; IRC sigue funcionando y no tiene fecha de retiro anunciada.
 
+## Varios streamers y entrar con Twitch
+
+El panel (`/admin`) tiene dos formas de entrar:
+
+- **Con Twitch**: cada streamer entra con su cuenta, ve y administra **solo lo suyo** (sus mascotas, ajustes y enlaces de OBS) y se lee el chat de su canal.
+- **Con la clave de administración** (`ADMIN_TOKEN`): respaldo y super-administrador. Actúa como el dueño de la instalación (`STREAMER_LOGIN`) y es la única vía que ve la pestaña **Canales**.
+
+**Quién puede entrar:** solo los canales de la lista de la pestaña *Canales* (el del dueño ya viene dentro y no se puede quitar). Al primer ingreso el canal queda atado al **id numérico** de Twitch: si alguien más toma ese nombre después, no hereda el acceso; si la persona cambia de nombre, sigue entrando. Al quitar un canal se cierran sus sesiones y se deja de leer su chat (los enlaces de OBS que ya creó siguen funcionando hasta que los elimine el administrador).
+
+**Configurarlo (una vez):**
+
+1. En https://dev.twitch.tv/console → *Register Your Application* (la cuenta necesita verificación en 2 pasos). Nombre libre, categoría *Website Integration*, tipo de cliente *Confidential*.
+2. *OAuth Redirect URL*: `https://TU-DOMINIO/auth/twitch/callback` (exacta, con https).
+3. Copia el *Client ID* y genera un *Client Secret*.
+4. En Render → Environment: `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` y `PUBLIC_URL=https://TU-DOMINIO`. Los tres juntos.
+5. En el panel (con la clave) → *Canales* → escribe el usuario de Twitch de cada invitado.
+
+**Seguridad:** solo se pide el permiso `openid` (identificar a la persona; sin correo ni acceso a su cuenta) y los tokens de Twitch se descartan al instante. El `id_token` se verifica (firma RS256, emisor, audiencia, vencimiento y nonce) y el flujo lleva `state` de un solo uso. La sesión es una cookie `HttpOnly`, `Secure`, `SameSite=Lax` (con prefijo `__Host-`); en la base solo se guarda el hash. Los cambios hechos con cookie exigen una cabecera propia y un `Origin` válido (anti‑CSRF). Duración: `SESSION_TTL_DAYS` (14 por defecto).
+
+```bash
+node scripts/e2e-login.mjs   # login completo en Chromium contra un Twitch de mentira local
+```
+
 ## Pendiente
 
-- Login con Twitch para el dashboard (hoy se entra con una clave única `ADMIN_TOKEN`).
+- Probar el login contra el Twitch real (en pruebas se usa un Twitch simulado); cambiar la clave `ADMIN_TOKEN` compartida cuando ya no haga falta.
 - Más especies; comprobar los términos de licencia de los sprites generados con PixelLab antes de usarlos en público.

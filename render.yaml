@@ -39,3 +39,11 @@ services:
       # Chat simulado para pruebas; en producción conviene dejarlo apagado.
       - key: ENABLE_DEV_CHAT
         value: "false"
+      # Entrar al panel con Twitch (varios streamers). Se crean en https://dev.twitch.tv/console
+      # (OAuth Redirect URL = PUBLIC_URL + /auth/twitch/callback). El secreto es como una contraseña.
+      - key: TWITCH_CLIENT_ID
+        sync: false
+      - key: TWITCH_CLIENT_SECRET
+        sync: false
+      - key: PUBLIC_URL        # la dirección oficial, ej. https://streampets.live
+        sync: false

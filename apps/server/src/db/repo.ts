@@ -1,13 +1,15 @@
-import { and, count, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, ilike, isNull, lt, or, sql } from "drizzle-orm";
 import type { Db } from "./client.js";
 import {
+  allowedChannels,
   overlays,
   pets,
+  sessions,
   streamerSettings,
   streamers,
   viewers,
 } from "./schema.js";
-import type { OverlayRow, PetRow, SettingsRow, StreamerRow, ViewerRow } from "./schema.js";
+import type { AllowedChannelRow, OverlayRow, PetRow, SettingsRow, StreamerRow, ViewerRow } from "./schema.js";
 
 /** Bots habituales de Twitch. Se siembran en los ajustes para que la streamer los vea y los edite. */
 export const DEFAULT_IGNORED_LOGINS: readonly string[] = [
@@ -300,4 +302,164 @@ export async function findActiveOverlayByHash(db: Db, tokenHash: string): Promis
     .from(overlays)
     .where(and(eq(overlays.tokenHash, tokenHash), isNull(overlays.revokedAt)));
   return rows[0];
+}
+
+
+// ───────────────────────────── canales autorizados ─────────────────────────────
+
+export async function listAllowedChannels(db: Db): Promise<AllowedChannelRow[]> {
+  return db.select().from(allowedChannels).orderBy(allowedChannels.createdAt);
+}
+
+/** Agrega un canal a la lista. Si ya estaba, devuelve la fila existente. */
+export async function addAllowedChannel(db: Db, login: string): Promise<AllowedChannelRow> {
+  await db.insert(allowedChannels).values({ login }).onConflictDoNothing();
+  return one(await db.select().from(allowedChannels).where(eq(allowedChannels.login, login)), "addAllowedChannel");
+}
+
+export async function removeAllowedChannel(db: Db, login: string): Promise<AllowedChannelRow | undefined> {
+  return (await db.delete(allowedChannels).where(eq(allowedChannels.login, login)).returning())[0];
+}
+
+/**
+ * Busca la autorización de quien intenta entrar. Si el canal ya está vinculado a un id de Twitch,
+ * solo vale ese id (alguien que herede el mismo login más tarde no entra). Si aún no está vinculado,
+ * vale el login.
+ */
+export async function findAllowedChannelFor(
+  db: Db,
+  who: { twitchUserId: string; login: string },
+): Promise<AllowedChannelRow | undefined> {
+  return (
+    await db
+      .select()
+      .from(allowedChannels)
+      .where(
+        or(
+          eq(allowedChannels.twitchUserId, who.twitchUserId),
+          and(isNull(allowedChannels.twitchUserId), eq(allowedChannels.login, who.login)),
+        ),
+      )
+  )[0];
+}
+
+export async function bindAllowedChannel(
+  db: Db,
+  rowId: string,
+  who: { twitchUserId: string; login: string },
+): Promise<void> {
+  await db
+    .update(allowedChannels)
+    .set({ twitchUserId: who.twitchUserId, login: who.login, lastLoginAt: new Date() })
+    .where(eq(allowedChannels.id, rowId));
+}
+
+export class StreamerConflictError extends Error {
+  constructor(login: string) {
+    super(`El login "${login}" ya pertenece a otra cuenta de Twitch`);
+    this.name = "StreamerConflictError";
+  }
+}
+
+/**
+ * Streamer de una cuenta de Twitch: por id si ya entró antes; si no, el que ya exista con ese login
+ * y aún no tenga cuenta vinculada (el streamer original); si no, uno nuevo. Sigue los cambios de nombre.
+ */
+export async function upsertStreamerFromTwitch(
+  db: Db,
+  who: { twitchUserId: string; login: string },
+): Promise<StreamerRow> {
+  const byId = (await db.select().from(streamers).where(eq(streamers.twitchUserId, who.twitchUserId)))[0];
+  if (byId) {
+    if (byId.login === who.login) return byId;
+    try {
+      return one(
+        await db
+          .update(streamers)
+          .set({ login: who.login, displayName: who.login })
+          .where(eq(streamers.id, byId.id))
+          .returning(),
+        "upsertStreamerFromTwitch/rename",
+      );
+    } catch {
+      throw new StreamerConflictError(who.login);
+    }
+  }
+  const byLogin = (await db.select().from(streamers).where(eq(streamers.login, who.login)))[0];
+  if (byLogin) {
+    if (byLogin.twitchUserId !== null) throw new StreamerConflictError(who.login);
+    return one(
+      await db.update(streamers).set({ twitchUserId: who.twitchUserId }).where(eq(streamers.id, byLogin.id)).returning(),
+      "upsertStreamerFromTwitch/bind",
+    );
+  }
+  const row = one(
+    await db.insert(streamers).values({ login: who.login, displayName: who.login, twitchUserId: who.twitchUserId }).returning(),
+    "upsertStreamerFromTwitch/create",
+  );
+  await db
+    .insert(streamerSettings)
+    .values({ streamerId: row.id, ignoredLogins: [...DEFAULT_IGNORED_LOGINS] })
+    .onConflictDoNothing();
+  return row;
+}
+
+/** Streamers con permiso vigente: son los canales cuyo chat hay que leer. */
+export async function listActiveStreamerChannels(db: Db): Promise<Array<{ streamerId: string; login: string }>> {
+  const rows = await db
+    .select({ streamerId: streamers.id, login: streamers.login })
+    .from(streamers)
+    .innerJoin(
+      allowedChannels,
+      or(
+        eq(allowedChannels.twitchUserId, streamers.twitchUserId),
+        and(isNull(allowedChannels.twitchUserId), eq(allowedChannels.login, streamers.login)),
+      ),
+    );
+  return rows;
+}
+
+/** Streamer que corresponde a una autorización (para cortarle el acceso al quitarla). */
+export async function findStreamerForAllowed(db: Db, row: AllowedChannelRow): Promise<StreamerRow | undefined> {
+  if (row.twitchUserId) {
+    const byId = (await db.select().from(streamers).where(eq(streamers.twitchUserId, row.twitchUserId)))[0];
+    if (byId) return byId;
+  }
+  return (await db.select().from(streamers).where(eq(streamers.login, row.login)))[0];
+}
+
+// ───────────────────────────── sesiones ─────────────────────────────
+
+export async function createSession(
+  db: Db,
+  input: { streamerId: string; tokenHash: string; expiresAt: Date },
+): Promise<void> {
+  await db.insert(sessions).values(input);
+}
+
+/** Sesión vigente por hash del token, o undefined si no existe o ya venció. */
+export async function findSession(
+  db: Db,
+  tokenHash: string,
+  now: Date,
+): Promise<{ streamerId: string } | undefined> {
+  const row = (
+    await db
+      .select({ streamerId: sessions.streamerId })
+      .from(sessions)
+      .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, now)))
+  )[0];
+  return row;
+}
+
+export async function deleteSession(db: Db, tokenHash: string): Promise<void> {
+  await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
+}
+
+export async function deleteSessionsForStreamer(db: Db, streamerId: string): Promise<void> {
+  await db.delete(sessions).where(eq(sessions.streamerId, streamerId));
+}
+
+export async function deleteExpiredSessions(db: Db, now: Date): Promise<void> {
+  await db.delete(sessions).where(lt(sessions.expiresAt, now));
 }

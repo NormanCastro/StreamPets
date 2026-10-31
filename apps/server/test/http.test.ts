@@ -13,6 +13,7 @@ import type { DbHandle } from "../src/db/client.js";
 
 const ADMIN = "test-admin-token-1234567890abcd";
 const auth = { authorization: `Bearer ${ADMIN}` };
+const AUTH = { cookieSecure: false, publicOrigin: undefined, sessionTtlMs: 86_400_000 };
 
 let handle: DbHandle;
 let built: BuiltApp;
@@ -30,6 +31,8 @@ beforeEach(async () => {
     species: makeCatalog(),
     adminToken: ADMIN,
     streamerId,
+    ownerLogin: "streamer",
+    auth: AUTH,
     assetsDir: ASSETS_DIR,
     overlayDist: "/nonexistent",
     enableDevChat: true,
@@ -296,6 +299,8 @@ describe("página del overlay", () => {
       species: makeCatalog(),
       adminToken: ADMIN,
       streamerId,
+      ownerLogin: "streamer",
+      auth: AUTH,
       assetsDir: ASSETS_DIR,
       overlayDist: dir,
       logLevel: "silent",
@@ -321,6 +326,8 @@ describe("dashboard en /admin", () => {
       species: makeCatalog(),
       adminToken: ADMIN,
       streamerId,
+      ownerLogin: "streamer",
+      auth: AUTH,
       assetsDir: ASSETS_DIR,
       overlayDist: "/nonexistent",
       dashboardDist: dir,

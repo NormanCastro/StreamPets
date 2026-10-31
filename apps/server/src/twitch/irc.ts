@@ -67,6 +67,8 @@ export function parseIrcLine(rawLine: string): IrcMessage | undefined {
 
 /** Lo que el sistema necesita saber de un mensaje de chat. El texto del mensaje no se conserva. */
 export interface TwitchChatMessage {
+  /** Canal donde se escribió, en minúsculas y sin "#". */
+  channel: string;
   userId: string;
   login: string;
   displayName: string;
@@ -80,6 +82,8 @@ const SUBSCRIBER_BADGES = new Set(["subscriber", "founder"]);
 export function toChatMessage(msg: IrcMessage): TwitchChatMessage | undefined {
   if (msg.command !== "PRIVMSG") return undefined;
   if (!msg.params[0]?.startsWith("#")) return undefined;
+  const channel = msg.params[0].slice(1).toLowerCase();
+  if (!/^[a-z0-9_]{1,25}$/.test(channel)) return undefined;
 
   const userId = msg.tags.get("user-id") ?? "";
   if (!/^\d{1,20}$/.test(userId)) return undefined;
@@ -92,5 +96,5 @@ export function toChatMessage(msg: IrcMessage): TwitchChatMessage | undefined {
   const displayName = (msg.tags.get("display-name") ?? "").trim() || login;
   const badges = (msg.tags.get("badges") ?? "").split(",").map((b) => b.split("/")[0] ?? "");
   const isSubscriber = badges.some((b) => SUBSCRIBER_BADGES.has(b));
-  return { userId, login, displayName, isSubscriber };
+  return { channel, userId, login, displayName, isSubscriber };
 }

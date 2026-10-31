@@ -3,7 +3,8 @@ import { ConfigError, loadConfig } from "./config.js";
 import { createDb } from "./db/client.js";
 import * as repo from "./db/repo.js";
 import { SpeciesCatalog } from "./domain/species.js";
-import { startTwitchChat } from "./twitch/start.js";
+import { TwitchOAuth } from "./auth/twitch-oauth.js";
+import { TwitchChatManager } from "./twitch/start.js";
 
 const SWEEP_MS = 5_000;
 const FLUSH_MS = 30_000;
@@ -16,14 +17,30 @@ async function main(): Promise<void> {
     login: config.streamerLogin,
     displayName: config.streamerDisplayName,
   });
+  // El canal del dueño siempre está autorizado.
+  await repo.addAllowedChannel(handle.db, config.streamerLogin);
   const species = SpeciesCatalog.fromAssetsDir(config.assetsDir);
 
-  let twitchStatus: (() => unknown) | undefined;
+  const oauth = config.twitchLogin
+    ? new TwitchOAuth({
+        clientId: config.twitchLogin.clientId,
+        clientSecret: config.twitchLogin.clientSecret,
+        redirectUri: config.twitchLogin.redirectUri,
+        ...(config.twitchLogin.idBaseUrl ? { idBaseUrl: config.twitchLogin.idBaseUrl } : {}),
+      })
+    : undefined;
+
+  let chat: TwitchChatManager | undefined;
   const { app, service } = await buildApp({
     db: handle.db,
     species,
     adminToken: config.adminToken,
     streamerId: streamer.id,
+    ownerLogin: config.streamerLogin,
+    auth: { cookieSecure: config.cookieSecure, publicOrigin: config.publicOrigin, sessionTtlMs: config.sessionTtlMs },
+    oauth,
+    onStreamerReady: (id, login) => chat?.add(id, login),
+    onChannelRemoved: (id) => chat?.remove(id),
     assetsDir: config.assetsDir,
     overlayDist: config.overlayDist,
     dashboardDist: config.dashboardDist,
@@ -31,20 +48,18 @@ async function main(): Promise<void> {
     enableDevChat: config.enableDevChat,
     trustProxy: config.trustProxy,
     logLevel: config.logLevel,
-    twitchStatus: () => twitchStatus?.() ?? null,
+    twitchStatus: (id, role) => (chat ? (role === "admin" ? chat.status() : chat.statusFor(id)) : null),
   });
 
-  const twitch = config.twitchChatEnabled
-    ? startTwitchChat({
-        service,
-        streamerId: streamer.id,
-        channel: config.twitchChannel,
-        url: config.twitchIrcUrl,
-        auth: config.twitchAuth,
-        log: app.log,
-      })
-    : undefined;
-  twitchStatus = twitch ? () => twitch.status() : undefined;
+  if (config.twitchChatEnabled) {
+    chat = new TwitchChatManager({ service, url: config.twitchIrcUrl, auth: config.twitchAuth, log: app.log });
+    chat.start();
+    // Canal del dueño (puede ser distinto del login si se definió TWITCH_CHANNEL) y los demás autorizados.
+    chat.add(streamer.id, config.twitchChannel);
+    for (const c of await repo.listActiveStreamerChannels(handle.db)) {
+      if (c.streamerId !== streamer.id) chat.add(c.streamerId, c.login);
+    }
+  }
 
   const guard = (name: string, fn: () => Promise<unknown>) => () => {
     fn().catch((err: unknown) => app.log.error({ err }, `fallo en ${name}`));
@@ -59,7 +74,7 @@ async function main(): Promise<void> {
     app.log.info({ signal }, "cerrando");
     clearInterval(sweepTimer);
     clearInterval(flushTimer);
-    twitch?.stop();
+    chat?.stop();
     try {
       await app.close();
       await service.flush();
@@ -78,7 +93,13 @@ async function main(): Promise<void> {
     app.log.warn(`ADMIN_TOKEN no definido: usando uno temporal de desarrollo: ${config.adminToken}`);
   }
   app.log.info(
-    { db: handle.kind, streamer: streamer.login, devChat: config.enableDevChat, twitchChat: config.twitchChatEnabled },
+    {
+      db: handle.kind,
+      streamer: streamer.login,
+      devChat: config.enableDevChat,
+      twitchChat: config.twitchChatEnabled,
+      twitchLogin: oauth !== undefined,
+    },
     "StreamPets listo",
   );
 }

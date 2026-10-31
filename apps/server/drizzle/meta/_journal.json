@@ -8,6 +8,13 @@
       "when": 1793325920450,
       "tag": "0000_fantastic_mac_gargan",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793434633532,
+      "tag": "0001_gorgeous_gideon",
+      "breakpoints": true
     }
   ]
 }

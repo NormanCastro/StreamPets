@@ -11,7 +11,10 @@ import { ChatService } from "./domain/chat-service.js";
 import { mathRng, systemClock } from "./domain/rng.js";
 import type { Clock, Rng } from "./domain/rng.js";
 import type { SpeciesCatalog } from "./domain/species.js";
+import type { TwitchOAuth } from "./auth/twitch-oauth.js";
 import { registerAdminRoutes } from "./http/admin.js";
+import { registerAuthRoutes } from "./http/auth.js";
+import type { AuthSettings, Role } from "./http/auth.js";
 import { OverlayHub } from "./http/hub.js";
 import { looksLikeOverlayToken } from "./lib/tokens.js";
 
@@ -20,18 +23,30 @@ export interface AppOptions {
   species: SpeciesCatalog;
   adminToken: string;
   streamerId: string;
+  /** Login del dueño de la instalación (su canal siempre está autorizado). */
+  ownerLogin: string;
+  /** Sesiones del dashboard y cookies. */
+  auth: AuthSettings;
+  /** Login con Twitch; undefined si no está configurado (solo se entra con la clave). */
+  oauth?: TwitchOAuth | undefined;
+  /** Alguien autorizado entró: hay que empezar a leer el chat de su canal. */
+  onStreamerReady?: (streamerId: string, login: string) => void;
+  /** Se le quitó el permiso a un canal: hay que dejar de leer su chat. */
+  onChannelRemoved?: (streamerId: string) => void;
   assetsDir: string;
   overlayDist: string;
   /** Panel de administración compilado (se sirve en /admin/). Opcional. */
   dashboardDist?: string;
-  /** Estado del lector de chat de Twitch (para /api/admin/me). */
-  twitchStatus?: () => unknown;
+  /** Estado del lector de chat de Twitch (para /api/admin/me): completo para el administrador, resumido para un streamer. */
+  twitchStatus?: (streamerId: string, role: Role) => unknown;
   allowedOrigins?: string[];
   enableDevChat?: boolean;
   trustProxy?: boolean;
   logLevel?: string;
   clock?: Clock;
   rng?: Rng;
+  /** Para probar sesiones que vencen. */
+  now?: () => Date;
 }
 
 export interface BuiltApp {
@@ -90,7 +105,7 @@ export async function buildApp(opts: AppOptions): Promise<BuiltApp> {
     if (req.method === "OPTIONS") {
       reply
         .header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS")
-        .header("Access-Control-Allow-Headers", "Authorization,Content-Type")
+        .header("Access-Control-Allow-Headers", "Authorization,Content-Type,X-StreamPets-CSRF")
         .header("Access-Control-Max-Age", "600")
         .code(204)
         .send();
@@ -128,6 +143,15 @@ export async function buildApp(opts: AppOptions): Promise<BuiltApp> {
     await hub.connect(socket, typeof token === "string" ? token : undefined);
   });
 
+  registerAuthRoutes(app, {
+    db: opts.db,
+    oauth: opts.oauth,
+    auth: opts.auth,
+    onStreamerReady: opts.onStreamerReady ?? (() => undefined),
+    log: app.log,
+    ...(opts.now ? { now: opts.now } : {}),
+  });
+
   registerAdminRoutes(app, {
     db: opts.db,
     service,
@@ -135,8 +159,12 @@ export async function buildApp(opts: AppOptions): Promise<BuiltApp> {
     species: opts.species,
     adminToken: opts.adminToken,
     streamerId: opts.streamerId,
+    ownerLogin: opts.ownerLogin,
+    auth: opts.auth,
     enableDevChat: opts.enableDevChat ?? false,
     twitchStatus: opts.twitchStatus ?? (() => null),
+    ...(opts.onChannelRemoved ? { onChannelRemoved: opts.onChannelRemoved } : {}),
+    ...(opts.now ? { now: opts.now } : {}),
   });
 
   // ── Archivos estáticos: sprites y overlay compilado ──
