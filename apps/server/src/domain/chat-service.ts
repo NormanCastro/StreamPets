@@ -207,6 +207,12 @@ export class ChatService {
     return outside.length;
   }
 
+  /** Tras apagar o encender una especie: recalcula lo permitido en todos los canales cargados y en los indicados. */
+  async refreshAllAccess(extra: Iterable<string> = []): Promise<void> {
+    const ids = new Set<string>([...this.runtimes.keys(), ...extra]);
+    for (const id of ids) await this.refreshAccess(id);
+  }
+
   /** Recarga la mascota de un espectador tras un cambio desde el dashboard y avisa al overlay. */
   async applyPetChange(streamerId: string, viewerId: string): Promise<void> {
     const rt = await this.runtime(streamerId);

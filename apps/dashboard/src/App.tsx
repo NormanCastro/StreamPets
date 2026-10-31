@@ -1,32 +1,32 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, describeError, setToken, setUnauthorizedHandler } from "./api";
 import type { Me, Species } from "./api";
+import { CatalogPanel } from "./components/CatalogPanel";
 import { ChannelsPanel } from "./components/ChannelsPanel";
 import { ModerationPanel } from "./components/ModerationPanel";
 import { MyPetsPanel } from "./components/MyPetsPanel";
 import { Login, loginErrorMessage } from "./components/Login";
 import { Logo } from "./components/Logo";
-import { ThemePicker } from "./components/ThemePicker";
+import { UserMenu } from "./components/UserMenu";
 import { DEFAULT_THEME, applyTheme, loadTheme } from "./theme";
 import { OverlaysPanel } from "./components/OverlaysPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { ViewersPanel } from "./components/ViewersPanel";
 
 /** Primera letra en mayúscula (Twitch entrega el usuario en minúsculas). */
-function capitalize(name: string): string {
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
-
-type Tab = "viewers" | "settings" | "overlays" | "channels" | "mypets" | "moderation";
+type Tab = "viewers" | "settings" | "overlays" | "channels" | "mypets" | "moderation" | "catalog";
 const BASE_TABS: Array<{ id: Tab; label: string }> = [
   { id: "viewers", label: "Mascotas" },
   { id: "settings", label: "Ajustes" },
   { id: "overlays", label: "Overlay para OBS" },
   { id: "mypets", label: "Mis pets" },
 ];
-const MODERATION_TAB = { id: "moderation" as Tab, label: "Moderación" };
+const MODERATION_TABS: Array<{ id: Tab; label: string }> = [
+  { id: "catalog", label: "Catálogo" },
+  { id: "moderation", label: "Moderación" },
+];
 
-const ADMIN_TABS: Array<{ id: Tab; label: string }> = [{ id: "channels", label: "Canales" }, MODERATION_TAB];
+const ADMIN_TABS: Array<{ id: Tab; label: string }> = [{ id: "channels", label: "Canales" }, ...MODERATION_TABS];
 
 /** Si volvemos de Twitch con un error, lo leemos una vez y limpiamos la dirección. */
 function takeLoginError(): string {
@@ -112,7 +112,7 @@ export function App() {
 
   // El administrador solo gestiona canales: las mascotas, ajustes y enlaces de OBS son de cada streamer
   // (el tuyo lo manejas entrando con Twitch).
-  const tabs = me.role === "admin" ? ADMIN_TABS : me.moderator ? [...BASE_TABS, MODERATION_TAB] : BASE_TABS;
+  const tabs = me.role === "admin" ? ADMIN_TABS : me.moderator ? [...BASE_TABS, ...MODERATION_TABS] : BASE_TABS;
   const activeTab = tabs.some((t) => t.id === tab) ? tab : (tabs[0] as { id: Tab }).id;
 
   return (
@@ -134,20 +134,7 @@ export function App() {
             </button>
           ))}
         </nav>
-        {me.role === "streamer" && <ThemePicker />}
-        {me.streamer && (
-          <span className="who" title={me.role === "admin" ? "Administración" : "Sesión de Twitch"}>
-            {me.role === "admin" ? "Admin" : capitalize(me.streamer.login)}
-            {me.role === "streamer" && me.plan === "premium" && (
-              <span className="star" role="img" aria-label="Plan premium" title="Plan premium">
-                ⭐
-              </span>
-            )}
-          </span>
-        )}
-        <button className="ghost" onClick={() => void logout()}>
-          Salir
-        </button>
+        <UserMenu me={me} onLogout={() => void logout()} />
       </header>
       <main>
         {loadError && <p className="error" role="alert">{loadError}</p>}
@@ -156,6 +143,7 @@ export function App() {
         {activeTab === "overlays" && <OverlaysPanel />}
         {activeTab === "channels" && me.role === "admin" && <ChannelsPanel species={species} />}
         {activeTab === "mypets" && me.role === "streamer" && <MyPetsPanel />}
+        {activeTab === "catalog" && me.moderator && <CatalogPanel />}
         {activeTab === "moderation" && me.moderator && <ModerationPanel />}
       </main>
     </div>

@@ -147,6 +147,25 @@ await amiga.getByRole("tab", { name: "Mis pets" }).click();
 await amiga.getByText("Motivo: no cumple").waitFor();
 console.log("OK rechazar: reubica al espectador y muestra el motivo");
 
+// 7) catálogo del administrador: todas las especies por categoría y apagar una en caso de emergencia
+adm.on("dialog", (d) => d.accept());
+await adm.getByRole("tab", { name: "Catálogo" }).click();
+for (const t of ["Gratis", "Premium", "Exclusivas"]) await adm.getByRole("heading", { name: new RegExp(`^${t}`) }).waitFor();
+const speciesList = (await adminApi("GET", "/api/admin/catalog")).items;
+const total = speciesList.length;
+await until(async () => (await adm.locator("tbody tr:not(:has(.empty))").count()) === total, `el catálogo muestra las ${total} especies`);
+await adm.screenshot({ path: shot.replace(".png", "-catalog.png"), fullPage: true });
+const lunaId = (await KEYAPI("GET", "/api/admin/viewers")).items[0].pet.speciesId;
+const lunaSpecies = speciesList.find((x) => x.id === lunaId);
+await KEYAPI("POST", "/api/admin/dev/chat", { login: "luna" });
+await adm.getByRole("switch", { name: `Desactivar ${lunaSpecies.name}` }).click();
+await adm.getByRole("switch", { name: `Activar ${lunaSpecies.name}` }).waitFor();
+await until(async () => (await KEYAPI("GET", "/api/admin/viewers")).items[0].pet.speciesId !== lunaId, "la mascota cambia de especie al apagarla");
+await adm.getByText("Desactivada").first().waitFor();
+await adm.getByRole("switch", { name: `Activar ${lunaSpecies.name}` }).click();
+await adm.getByRole("switch", { name: `Desactivar ${lunaSpecies.name}` }).waitFor();
+console.log("OK catálogo: lista todas, apaga una y reubica a quien la tenía, y se puede volver a encender");
+
 if (errors.length) await fail("errores en el navegador: " + errors.join(" | "));
 await browser.close();
 server.kill();

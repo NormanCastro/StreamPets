@@ -118,7 +118,8 @@ await page.getByText(/login de Twitch inválido/).waitFor();
 console.log("OK error de validación mostrado");
 
 // 7) salir y volver a pedir clave
-await page.getByRole("button", { name: "Salir" }).click();
+await page.getByRole("button", { name: "Menú de usuario" }).click();
+await page.getByRole("menuitem", { name: "Salir" }).click();
 await page.getByRole("button", { name: "Entrar con clave" }).click();
 await page.getByLabel("Clave de acceso").waitFor();
 await page.screenshot({ path: shot.replace(".png", "-login.png") });
@@ -137,7 +138,8 @@ await ap.getByRole("button", { name: "Entrar con clave" }).click();
 await ap.getByLabel("Clave de acceso").fill(ADMIN);
 await ap.getByRole("button", { name: "Entrar", exact: true }).click();
 await ap.getByRole("tab", { name: "Canales" }).waitFor();
-await ap.locator(".who").filter({ hasText: "Admin" }).waitFor();
+await ap.getByRole("button", { name: "Menú de usuario" }).click();
+await ap.locator(".menu-name strong").filter({ hasText: "Admin" }).waitFor();
 for (const t of ["Mascotas", "Ajustes", "Overlay para OBS"]) if ((await ap.getByRole("tab", { name: t }).count()) !== 0) await fail(`el administrador no debería ver la pestaña ${t}`);
 if ((await ap.locator(".stat").count()) !== 0) await fail("el administrador no debería ver contadores de espectadores");
 if ((await ap.getByText("espectadores").count()) !== 0) await fail("el administrador no debería ver espectadores");

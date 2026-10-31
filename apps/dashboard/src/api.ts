@@ -13,6 +13,8 @@ export interface Species {
   locked: boolean;
   /** Pet subida por el propio canal. */
   custom?: boolean;
+  /** Apagada por el administrador: nadie puede usarla. */
+  disabled?: boolean;
 }
 
 /** Por qué una especie está bloqueada, para mostrarlo en los selectores. */
@@ -22,6 +24,7 @@ export function lockReason(s: Pick<Species, "scope" | "tier">): string {
 }
 /** Texto de una especie en un selector. */
 export function speciesLabel(s: Species): string {
+  if (s.disabled) return `🔒 ${s.name} · No disponible`;
   if (s.locked) return `🔒 ${s.name} · ${lockReason(s)}`;
   return s.tier === "premium" ? `${s.name} ★` : s.name;
 }
@@ -63,11 +66,25 @@ export interface OverlayWithToken extends OverlayItem {
 
 export type UserRole = "admin" | "streamer";
 export interface Me {
-  streamer: { login: string; displayName: string } | null;
+  streamer: { login: string; displayName: string; avatarUrl?: string | null } | null;
   role: UserRole;
   plan: Plan;
   /** Puede revisar las pets que suben los canales. */
   moderator?: boolean;
+}
+export interface CatalogItem {
+  id: string;
+  name: string;
+  url: string;
+  category: "free" | "premium" | "exclusive";
+  premium: boolean;
+  custom: boolean;
+  ownerLogin: string | null;
+  disabled: boolean;
+  /** En cuántos canales hay al menos una mascota de esta especie. */
+  channels: number;
+  /** Mascotas en total. */
+  pets: number;
 }
 export type CustomPetStatus = "pending" | "approved" | "rejected";
 export interface CustomPet {
@@ -210,6 +227,9 @@ async function request<T>(method: string, path: string, body?: unknown, signal?:
 
 export const api = {
   me: () => request<Me>("GET", "/api/admin/me"),
+  catalog: () => request<{ items: CatalogItem[] }>("GET", "/api/admin/catalog"),
+  setSpeciesDisabled: (id: string, disabled: boolean) =>
+    request<{ id: string; disabled: boolean }>("PATCH", `/api/admin/catalog/${encodeURIComponent(id)}`, { disabled }),
   customPets: () =>
     request<{ items: CustomPet[]; quota: { used: number; max: number } }>("GET", "/api/admin/custom-pets"),
   uploadCustomPet: (name: string, png: string) =>

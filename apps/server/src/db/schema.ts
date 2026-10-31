@@ -26,6 +26,8 @@ export const streamers = pgTable("streamers", {
   twitchUserId: text("twitch_user_id").unique(),
   login: text("login").notNull().unique(),
   displayName: text("display_name").notNull(),
+  /** Foto de perfil de Twitch (se actualiza en cada ingreso con Twitch). */
+  avatarUrl: text("avatar_url"),
   createdAt: createdAt(),
 });
 
@@ -103,6 +105,12 @@ export const customSpecies = pgTable(
   (t) => [index("custom_species_streamer_idx").on(t.streamerId), index("custom_species_status_idx").on(t.status)],
 );
 export type CustomSpeciesRow = typeof customSpecies.$inferSelect;
+
+/** Especies que el administrador apagó (para todos los canales). Una fila = desactivada. */
+export const speciesDisabled = pgTable("species_disabled", {
+  speciesId: text("species_id").primaryKey(),
+  disabledAt: timestamp("disabled_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const streamerSettings = pgTable("streamer_settings", {
   streamerId: uuid("streamer_id")

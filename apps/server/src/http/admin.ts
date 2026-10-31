@@ -149,10 +149,54 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
         { sid, isModerator },
       );
 
+      // ── Catálogo completo con uso por canal, y encendido/apagado global de cada especie (administrador) ──
+      admin.get("/catalog", async (req, reply) => {
+        if (!isModerator(req)) return fail(reply, 403, "forbidden");
+        const usage = await repo.listSpeciesUsage(db);
+        const owners = new Map<string, string | null>();
+        const items = [];
+        for (const e of species.list()) {
+          let ownerLogin: string | null = null;
+          if (e.ownerStreamerId !== undefined) {
+            if (!owners.has(e.ownerStreamerId)) owners.set(e.ownerStreamerId, (await repo.getStreamer(db, e.ownerStreamerId))?.login ?? null);
+            ownerLogin = owners.get(e.ownerStreamerId) ?? null;
+          }
+          const u = usage.get(e.id) ?? { channels: 0, pets: 0 };
+          items.push({
+            id: e.id,
+            name: e.name,
+            url: e.url,
+            category: e.scope === "exclusive" ? "exclusive" : e.tier === "premium" ? "premium" : "free",
+            premium: e.tier === "premium",
+            custom: e.ownerStreamerId !== undefined,
+            ownerLogin,
+            disabled: species.isDisabled(e.id),
+            channels: u.channels,
+            pets: u.pets,
+          });
+        }
+        // Las más usadas primero (por canales, luego por mascotas, luego por nombre).
+        items.sort((a, b) => b.channels - a.channels || b.pets - a.pets || a.name.localeCompare(b.name, "es"));
+        return { items };
+      });
+
+      admin.patch("/catalog/:id", async (req, reply) => {
+        if (!isModerator(req)) return fail(reply, 403, "forbidden");
+        const { id } = req.params as { id: string };
+        const body = parse(z.object({ disabled: z.boolean() }).strict(), req.body, reply);
+        if (!body) return reply;
+        if (!species.has(id)) return fail(reply, 404, "not_found");
+        await repo.setSpeciesDisabled(db, id, body.disabled);
+        species.setDisabled(await repo.listDisabledSpecies(db));
+        // Quien la tenía pasa a otra especie ya; y todos los canales recalculan lo permitido.
+        await service.refreshAllAccess(await repo.listStreamersUsingSpecies(db, id));
+        return { id, disabled: body.disabled };
+      });
+
       admin.get("/me", async (req) => {
         const streamer = await repo.getStreamer(db, sid(req));
         return {
-          streamer: streamer ? { login: streamer.login, displayName: streamer.displayName } : null,
+          streamer: streamer ? { login: streamer.login, displayName: streamer.displayName, avatarUrl: streamer.avatarUrl } : null,
           role: role(req),
           plan: (await access.info(sid(req))).plan,
           moderator: isModerator(req),
@@ -175,6 +219,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
               scope: e.scope,
               tier: e.tier,
               custom: e.ownerStreamerId !== undefined,
+              disabled: species.isDisabled(e.id),
               locked: !allowed.has(e.id),
             })),
         };

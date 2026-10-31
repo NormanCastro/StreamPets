@@ -96,6 +96,22 @@ describe("verifyIdToken", () => {
     expect(() => peekKid("x.y.z")).toThrow(OidcError);
   });
 
+  it("acepta la foto solo si es https del CDN de Twitch", () => {
+    const pic = "https://static-cdn.jtvnw.net/jtv_user_pictures/abc-profile_image-300x300.png";
+    expect(verifyIdToken(sign(k1.priv, goodClaims({ picture: pic })), verifyOpts()).picture).toBe(pic);
+    for (const bad of [
+      "http://static-cdn.jtvnw.net/x.png",
+      "https://evil.example/x.png",
+      "https://static-cdn.jtvnw.net.evil.example/x.png",
+      "https://static-cdn.jtvnw.net/x.png?a=<b>",
+      "javascript:alert(1)",
+      42,
+    ]) {
+      expect(verifyIdToken(sign(k1.priv, goodClaims({ picture: bad })), verifyOpts()).picture).toBeUndefined();
+    }
+    expect(verifyIdToken(sign(k1.priv, goodClaims()), verifyOpts()).picture).toBeUndefined();
+  });
+
   it("ignora un preferred_username con formato raro", () => {
     expect(verifyIdToken(sign(k1.priv, goodClaims({ preferred_username: "a b<script>" })), verifyOpts()).preferredUsername).toBeUndefined();
   });
@@ -196,7 +212,7 @@ describe("TwitchOAuth", () => {
       state: "s1",
       nonce: "n1",
     });
-    expect(JSON.parse(u.searchParams.get("claims") as string)).toEqual({ id_token: { preferred_username: null } });
+    expect(JSON.parse(u.searchParams.get("claims") as string)).toEqual({ id_token: { preferred_username: null, picture: null } });
   });
 
   it("identify devuelve id y login verificados", async () => {

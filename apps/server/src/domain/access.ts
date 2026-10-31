@@ -45,7 +45,12 @@ export class SpeciesAccess {
   /** Ids de las especies que este streamer puede usar. */
   async allowedIds(streamerId: string): Promise<Set<string>> {
     const a = await this.info(streamerId);
-    return new Set(this.species.list().filter((e) => canUse(e, a)).map((e) => e.id));
+    return new Set(
+      this.species
+        .list()
+        .filter((e) => !this.species.isDisabled(e.id) && canUse(e, a))
+        .map((e) => e.id),
+    );
   }
 
   async isAllowed(streamerId: string, speciesId: string): Promise<boolean> {

@@ -26,7 +26,12 @@ export interface IdTokenClaims {
   sub: string;
   /** Login de Twitch, si el token lo trae (se pide con el parámetro `claims`). */
   preferredUsername: string | undefined;
+  /** Foto de perfil (solo si viene del CDN de Twitch por https). */
+  picture: string | undefined;
 }
+
+/** La foto solo se acepta del CDN de imágenes de Twitch: así nadie puede meter una dirección cualquiera en la página. */
+const AVATAR_RE = /^https:\/\/static-cdn\.jtvnw\.net\/[A-Za-z0-9_./%-]{1,300}$/;
 
 export interface VerifyOptions {
   keys: readonly Jwk[];
@@ -96,7 +101,9 @@ export function verifyIdToken(token: string, opts: VerifyOptions): IdTokenClaims
   if (typeof sub !== "string" || !/^\d{1,20}$/.test(sub)) throw new OidcError("sub inválido");
   const pu = claims["preferred_username"];
   const preferredUsername = typeof pu === "string" && /^[A-Za-z0-9_]{1,25}$/.test(pu) ? pu.toLowerCase() : undefined;
-  return { sub, preferredUsername };
+  const pic = claims["picture"];
+  const picture = typeof pic === "string" && AVATAR_RE.test(pic) ? pic : undefined;
+  return { sub, preferredUsername, picture };
 }
 
 export interface JwksCacheOptions {

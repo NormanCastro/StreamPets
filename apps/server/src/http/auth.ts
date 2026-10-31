@@ -236,6 +236,9 @@ export function registerAuthRoutes(app: FastifyInstance, d: AuthRoutesDeps): voi
       throw err;
     }
     await repo.bindAllowedChannel(d.db, allowed.id, who);
+    if (who.avatarUrl !== undefined && who.avatarUrl !== streamer.avatarUrl) {
+      await repo.setStreamerAvatar(d.db, streamer.id, who.avatarUrl);
+    }
 
     await repo.deleteExpiredSessions(d.db, now());
     const token = randomBytes(32).toString("base64url");

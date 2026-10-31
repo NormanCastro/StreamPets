@@ -217,6 +217,10 @@ Los canales con plan **premium** pueden subir hasta **3 mascotas propias** desde
 - El servidor valida el PNG (firma, medidas, CRC de cada bloque) y guarda una copia limpia, sin metadatos. Las imágenes se guardan en la base de datos (el disco de Render gratis se borra en cada reinicio) y solo las aprobadas se sirven, en `/api/custom-species/<id>/…`.
 - Los cupos por plan están en `CUSTOM_PET.quota` (`packages/shared/src/index.ts`).
 
+## Catálogo del administrador
+
+La pestaña **Catálogo** (clave de administración, o el dueño entrando con Twitch) lista todas las mascotas separadas en Gratis, Premium y Exclusivas, de la más usada a la menos usada, con en cuántos canales y cuántas mascotas hay de cada una. Cada especie tiene un interruptor: al **desactivarla** deja de estar disponible para todos los canales (incluido el dueño), quienes la tenían pasan a otra especie al instante y nadie nuevo la recibe. El estado se guarda en la base de datos (`species_disabled`) y se mantiene al reiniciar.
+
 ## Pendiente
 
 - Probar el login contra el Twitch real (en pruebas se usa un Twitch simulado); cambiar la clave `ADMIN_TOKEN` compartida cuando ya no haga falta.

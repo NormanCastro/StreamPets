@@ -18,6 +18,11 @@ export async function reloadCustomSpecies(db: Db, catalog: SpeciesCatalog): Prom
   catalog.setCustom(await repo.listApprovedCustomPets(db));
 }
 
+/** Lee de la base qué especies están apagadas. */
+export async function reloadDisabledSpecies(db: Db, catalog: SpeciesCatalog): Promise<void> {
+  catalog.setDisabled(await repo.listDisabledSpecies(db));
+}
+
 /** species.json de una pet personalizada (las URLs son relativas a este mismo archivo). */
 export function customSpeciesDef(id: string, name: string) {
   return {

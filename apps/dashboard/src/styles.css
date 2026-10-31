@@ -239,10 +239,6 @@ td select { width: auto; min-width: 140px; padding: 6px 10px; }
 .divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
 .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .login-key { display: grid; gap: 12px; }
-.who {
-  padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(var(--deep-rgb), 0.5);
-  color: var(--pink); font-weight: 600; font-size: 13px; white-space: nowrap;
-}
 
 @media (max-width: 640px) {
   .logo-wide { height: 92px; }
@@ -260,23 +256,15 @@ td select { width: auto; min-width: 140px; padding: 6px 10px; }
 tbody tr.subrow:hover { background: transparent; box-shadow: none; }
 .subrow td { white-space: normal; background: rgba(var(--deep-rgb), 0.35); }
 .grants { display: flex; flex-wrap: wrap; gap: 8px 26px; padding: 4px 2px; }
-.who .star { margin-left: 6px; }
 td select { max-width: 100%; }
 
 /* ── Selector de color ── */
-.themes { position: relative; display: inline-flex; align-items: center; }
 button.swatch {
   width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 2px solid transparent; box-shadow: none;
   background: var(--sw); outline: 1px solid rgba(255, 255, 255, 0.22); outline-offset: 0;
 }
 button.swatch:hover:not(:disabled) { transform: scale(1.15); filter: none; box-shadow: 0 0 10px -1px var(--sw); }
 button.swatch[aria-pressed="true"] { border-color: var(--text); outline-color: var(--sw); outline-offset: 2px; }
-button.swatch.toggle { width: 34px; height: 34px; outline-offset: 3px; outline-color: var(--line); box-shadow: 0 0 14px -3px var(--sw); }
-.theme-pop {
-  position: absolute; top: calc(100% + 10px); right: 0; z-index: 10; display: flex; gap: 10px; padding: 10px 14px;
-  border: 1px solid var(--line); border-radius: 999px; background: var(--panel);
-  box-shadow: 0 14px 36px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(var(--accent-rgb), 0.08);
-}
 .keycell { display: inline-flex; gap: 8px; align-items: center; }
 
 /* ── Mascotas propias y moderación ── */
@@ -313,3 +301,42 @@ button.swatch.toggle { width: 34px; height: 34px; outline-offset: 3px; outline-c
 .guidetable th, .guidetable td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: normal; }
 .guidetable td:first-child { width: 56px; font-weight: 700; }
 a.btn.dl { display: inline-block; text-decoration: none; background: var(--accent); color: #fff; padding: 10px 16px; border-radius: 12px; font-weight: 600; }
+
+/* ── Menú de usuario (sándwich) ── */
+.usermenu { position: relative; margin-left: auto; }
+button.burger {
+  width: 42px; height: 42px; padding: 0; display: inline-flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px;
+  background: rgba(var(--deep-rgb), 0.5); border: 1px solid var(--line); box-shadow: none;
+}
+button.burger span { display: block; width: 18px; height: 2px; border-radius: 2px; background: var(--text); }
+button.burger[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 16px -4px var(--glow); }
+.menu-pop {
+  position: absolute; top: calc(100% + 10px); right: 0; z-index: 20; width: 260px; display: grid; gap: 14px; padding: 16px;
+  border: 1px solid var(--line); border-radius: 16px; background: var(--panel);
+  box-shadow: 0 14px 36px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(var(--accent-rgb), 0.08);
+}
+.menu-profile { display: flex; align-items: center; gap: 12px; }
+.avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex: none; border: 2px solid var(--accent); }
+.avatar.initial {
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; color: var(--on-accent);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.9), rgba(var(--accent2-rgb), 0.9));
+}
+.menu-name { display: grid; min-width: 0; }
+.menu-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-name .star { margin-left: 6px; }
+.menu-section { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.menu-swatches { display: flex; flex-wrap: wrap; gap: 12px; padding: 2px; }
+.menu-logout { width: 100%; }
+
+/* ── Catálogo (administrador) ── */
+.thumb {
+  display: inline-block; flex: none; border-radius: 10px; background-repeat: no-repeat; image-rendering: pixelated;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+.thumb.empty { border: 1px dashed var(--line); }
+.catgroup { margin-top: 22px; }
+.cattitle { font-size: 17px; margin: 0 0 2px; display: flex; align-items: center; gap: 10px; }
+.catname { display: flex; align-items: center; gap: 12px; }
+tr.off td { opacity: .55; }
+tr.off td:last-child { opacity: 1; }
+.switchrow { display: inline-flex; align-items: center; gap: 12px; }

@@ -7,6 +7,7 @@ import {
   pets,
   sessions,
   speciesAccess,
+  speciesDisabled,
   streamerSettings,
   streamers,
   viewers,
@@ -653,4 +654,38 @@ export async function reviewCustomPet(
 export async function deleteCustomPet(db: Db, id: string): Promise<boolean> {
   const rows = await db.delete(customSpecies).where(eq(customSpecies.id, id)).returning({ id: customSpecies.id });
   return rows.length > 0;
+}
+
+/** Guarda (o borra) la foto de perfil de Twitch de un streamer. */
+export async function setStreamerAvatar(db: Db, streamerId: string, url: string | null): Promise<void> {
+  await db.update(streamers).set({ avatarUrl: url }).where(eq(streamers.id, streamerId));
+}
+
+// ───────────────────────────── catálogo (vista del administrador) ─────────────────────────────
+
+export async function listDisabledSpecies(db: Db): Promise<string[]> {
+  return (await db.select({ id: speciesDisabled.speciesId }).from(speciesDisabled)).map((r) => r.id);
+}
+
+export async function setSpeciesDisabled(db: Db, speciesId: string, disabled: boolean): Promise<void> {
+  if (disabled) await db.insert(speciesDisabled).values({ speciesId }).onConflictDoNothing();
+  else await db.delete(speciesDisabled).where(eq(speciesDisabled.speciesId, speciesId));
+}
+
+/** Por especie: en cuántos canales hay al menos una mascota y cuántas mascotas hay en total. */
+export async function listSpeciesUsage(db: Db): Promise<Map<string, { channels: number; pets: number }>> {
+  const rows = await db
+    .select({
+      speciesId: pets.speciesId,
+      channels: sql<number>`count(distinct ${pets.streamerId})`,
+      total: sql<number>`count(*)`,
+    })
+    .from(pets)
+    .groupBy(pets.speciesId);
+  return new Map(rows.map((r) => [r.speciesId, { channels: Number(r.channels), pets: Number(r.total) }]));
+}
+
+export async function listStreamersUsingSpecies(db: Db, speciesId: string): Promise<string[]> {
+  const rows = await db.selectDistinct({ id: pets.streamerId }).from(pets).where(eq(pets.speciesId, speciesId));
+  return rows.map((r) => r.id);
 }

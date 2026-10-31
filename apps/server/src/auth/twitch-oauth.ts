@@ -12,6 +12,8 @@ export interface TwitchOAuthOptions {
 }
 
 export interface TwitchIdentity {
+  /** Foto de perfil de Twitch, si la entregó. */
+  avatarUrl?: string | undefined;
   twitchUserId: string;
   login: string;
 }
@@ -49,7 +51,7 @@ export class TwitchOAuth {
       scope: "openid",
       state: p.state,
       nonce: p.nonce,
-      claims: JSON.stringify({ id_token: { preferred_username: null } }),
+      claims: JSON.stringify({ id_token: { preferred_username: null, picture: null } }),
     });
     return `${this.base}/oauth2/authorize?${q.toString()}`;
   }
@@ -99,6 +101,6 @@ export class TwitchOAuth {
       login = info["login"].toLowerCase();
     }
     if (!/^[a-z0-9_]{1,25}$/.test(login)) throw new OidcError("login inválido");
-    return { twitchUserId: claims.sub, login };
+    return { twitchUserId: claims.sub, login, ...(claims.picture ? { avatarUrl: claims.picture } : {}) };
   }
 }

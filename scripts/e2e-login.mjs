@@ -45,6 +45,7 @@ const twitch = createServer((req, res) => {
       const c = b64({
         iss: `http://localhost:${TW_PORT}/oauth2`, aud: CLIENT_ID, sub: g.sub, nonce: g.nonce,
         exp: Math.floor(Date.now() / 1000) + 600, preferred_username: g.login,
+        picture: `https://static-cdn.jtvnw.net/jtv_user_pictures/e2e-${g.login}.png`,
       });
       const sig = createSign("RSA-SHA256").update(`${h}.${c}`).sign(privateKey).toString("base64url");
       res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ id_token: `${h}.${c}.${sig}`, access_token: "x" }));
@@ -86,13 +87,19 @@ const newCtx = async () => {
   const ctx = await browser.newContext({ viewport: { width: 1100, height: 700 } });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(String(e)));
-  page.on("console", (m) => { if (m.type() === "error" && !/status of (401|403|400)/.test(m.text())) errors.push(m.text()); });
+  // (la foto de Twitch no carga en el sandbox sin internet: esos errores se ignoran)
+  page.on("console", (m) => { if (m.type() === "error" && !/status of (401|403|400)/.test(m.text()) && !/ERR_TUNNEL|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED/.test(m.text())) errors.push(m.text()); });
   return { ctx, page };
 };
 
 const themeOf = (page) => page.evaluate(() => document.documentElement.dataset.theme);
-const who = (page) => page.locator(".who");
-const picker = (page) => page.getByRole("button", { name: "Cambiar color del panel" });
+// El nombre, el plan, el color y «Salir» viven en el menú de usuario (botón sándwich).
+const openMenu = async (page) => {
+  if ((await page.locator(".menu-pop").count()) === 0) await page.getByRole("button", { name: "Menú de usuario" }).click();
+  return page.locator(".menu-pop");
+};
+const who = async (page) => (await openMenu(page)).locator(".menu-name strong");
+const picker = (page) => page.getByRole("group", { name: "Color del panel" });
 
 // 1) la pantalla de entrada muestra el botón de Twitch
 const owner = await newCtx();
@@ -106,8 +113,8 @@ console.log("OK botón «Entrar con Twitch» visible");
 // 2) la dueña entra con Twitch → ve su panel y la pestaña de admin NO aparece (no entró con la clave)
 nextUser = { sub: "100", login: "nazhika" };
 await owner.page.getByRole("link", { name: "Entrar con Twitch" }).click();
-await who(owner.page).filter({ hasText: "Nazhika" }).waitFor();
-const whoText = (await who(owner.page).textContent()) ?? "";
+await (await who(owner.page)).filter({ hasText: "Nazhika" }).waitFor();
+const whoText = (await (await who(owner.page)).textContent()) ?? "";
 if (whoText.includes("@") || !whoText.startsWith("Nazhika")) await fail("el nombre debe verse «Nazhika» sin @: " + whoText);
 if (!whoText.includes("⭐")) await fail("el dueño (todo incluido) debería llevar ⭐: " + whoText);
 await owner.page.getByRole("tab", { name: "Mascotas" }).waitFor();
@@ -116,8 +123,14 @@ const aligns = await owner.page.locator(".stat").evaluateAll((els) => els.map((e
 if (aligns.length !== 3 || aligns.some((a) => a !== "center")) await fail("los contadores deberían ir centrados: " + aligns);
 console.log("OK nombre sin @ con mayúscula, ⭐ y contadores centrados");
 
+// la foto de perfil de Twitch llega al menú (y la dirección viaja solo si es del CDN de Twitch)
+const me0 = await owner.page.evaluate(async () => (await fetch("/api/admin/me")).json());
+if (me0.streamer.avatarUrl !== "https://static-cdn.jtvnw.net/jtv_user_pictures/e2e-nazhika.png") await fail("la foto de Twitch no llegó: " + me0.streamer.avatarUrl);
+await owner.page.locator(".menu-pop .avatar").waitFor();
+console.log("OK el menú muestra la foto de perfil de Twitch");
+
 // el streamer sí puede elegir color, y se guarda
-await picker(owner.page).click();
+await openMenu(owner.page);
 await owner.page.getByRole("button", { name: "Color rosado" }).click();
 if ((await themeOf(owner.page)) !== "rosado") await fail("el streamer no pudo cambiar a rosado");
 await owner.page.screenshot({ path: shot.replace(".png", "-streamer-rosado.png") });
@@ -127,7 +140,7 @@ console.log("OK entra con Twitch como streamer (sin pestaña Canales)");
 
 // 3) la sesión sobrevive a recargar
 await owner.page.reload();
-await who(owner.page).filter({ hasText: "Nazhika" }).waitFor();
+await (await who(owner.page)).filter({ hasText: "Nazhika" }).waitFor();
 if ((await themeOf(owner.page)) !== "rosado") await fail("el color del streamer no se guardó");
 console.log("OK la sesión y el color sobreviven al recargar");
 
@@ -151,7 +164,9 @@ await adm.page.getByRole("button", { name: "Entrar", exact: true }).click();
 await adm.page.getByRole("tab", { name: "Canales" }).click();
 if ((await themeOf(adm.page)) !== "morado") await fail("el panel de administración debe ser morado: " + (await themeOf(adm.page)));
 if ((await picker(adm.page).count()) !== 0) await fail("el panel de administración no debería tener selector de color");
-const admText = ((await who(adm.page).textContent()) ?? "").trim();
+await adm.page.getByRole("button", { name: "Menú de usuario" }).click();
+if ((await picker(adm.page).count()) !== 0) await fail("el menú del administrador no debería tener selector de color");
+const admText = ((await (await who(adm.page)).textContent()) ?? "").trim();
 if (admText !== "Admin") await fail("con la clave el encabezado debe decir «Admin»: " + admText);
 console.log("OK login y panel de administración siempre morados, sin selector, y dice «Admin»");
 await adm.page.getByLabel("Usuario de Twitch a autorizar").fill("@Amiga");
@@ -164,8 +179,8 @@ const friend = await newCtx();
 nextUser = { sub: "200", login: "amiga" };
 await friend.page.goto(`${BASE}/admin`);
 await friend.page.getByRole("link", { name: "Entrar con Twitch" }).click();
-await who(friend.page).filter({ hasText: "Amiga" }).waitFor();
-if (((await who(friend.page).textContent()) ?? "").includes("⭐")) await fail("un canal gratis no debería llevar ⭐");
+await (await who(friend.page)).filter({ hasText: "Amiga" }).waitFor();
+if (((await (await who(friend.page)).textContent()) ?? "").includes("⭐")) await fail("un canal gratis no debería llevar ⭐");
 await friend.page.getByRole("tab", { name: "Overlay para OBS" }).click();
 await friend.page.getByLabel("Nombre del nuevo overlay").fill("OBS amiga");
 await friend.page.getByRole("button", { name: "Crear enlace" }).click();
@@ -195,7 +210,7 @@ await adm.page.getByRole("row", { name: /@amiga/ }).getByRole("button", { name: 
 await adm.page.getByLabel("Zorro para amiga").click(); // casilla controlada: el estado cambia cuando responde el servidor
 await adm.page.getByRole("button", { name: "Especies (1/1)" }).waitFor();
 await friend.page.reload();
-await who(friend.page).filter({ hasText: "⭐" }).waitFor();
+await (await who(friend.page)).filter({ hasText: "⭐" }).waitFor();
 await friend.page.getByRole("tab", { name: "Ajustes" }).click();
 if (await dis("Dragón")) await fail("el dragón debería estar desbloqueado con plan premium");
 if (await dis("Zorro")) await fail("el zorro debería estar desbloqueado con permiso");
@@ -220,7 +235,7 @@ await viaKey.page.getByRole("button", { name: "Entrar", exact: true }).click();
 await viaKey.page.getByText("Clave incorrecta.").waitFor();
 await viaKey.page.getByLabel("Clave de acceso").fill(key);
 await viaKey.page.getByRole("button", { name: "Entrar", exact: true }).click();
-await who(viaKey.page).filter({ hasText: "Amiga" }).waitFor();
+await (await who(viaKey.page)).filter({ hasText: "Amiga" }).waitFor();
 if ((await viaKey.page.getByRole("tab", { name: "Canales" }).count()) !== 0) await fail("la clave personal no debe dar acceso a Canales");
 console.log("OK clave personal: la genera el admin y la amiga entra sin Twitch (solo a su canal)");
 
@@ -237,7 +252,7 @@ await viaKey.page.reload();
 await viaKey.page.getByRole("button", { name: "Entrar con clave" }).click();
 await viaKey.page.getByLabel("Clave de acceso").fill(key2);
 await viaKey.page.getByRole("button", { name: "Entrar", exact: true }).click();
-await who(viaKey.page).filter({ hasText: "Amiga" }).waitFor();
+await (await who(viaKey.page)).filter({ hasText: "Amiga" }).waitFor();
 
 // 8) el admin la quita → su sesión se cierra enseguida
 adm.page.once("dialog", (d) => d.accept());
@@ -252,7 +267,8 @@ if (retry !== 401) await fail("la clave de un canal quitado siguió sirviendo: "
 console.log("OK al quitarla, su sesión se cierra");
 
 // 9) salir cierra la sesión de la dueña
-await owner.page.getByRole("button", { name: "Salir" }).click();
+await openMenu(owner.page);
+await owner.page.getByRole("menuitem", { name: "Salir" }).click();
 await owner.page.getByRole("link", { name: "Entrar con Twitch" }).waitFor();
 const out = await owner.page.evaluate(async () => (await fetch("/api/admin/me")).status);
 if (out !== 401) await fail("la sesión no se cerró: " + out);

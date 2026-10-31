@@ -13,6 +13,7 @@ export type SpeciesEntry = SpeciesIndex["species"][number] & {
 export class SpeciesCatalog {
   private readonly byId = new Map<string, SpeciesEntry>();
   private custom: SpeciesEntry[] = [];
+  private disabled = new Set<string>();
 
   constructor(readonly entries: readonly SpeciesEntry[]) {
     if (entries.length === 0) throw new Error("El catálogo de especies está vacío");
@@ -44,6 +45,15 @@ export class SpeciesCatalog {
     return new SpeciesCatalog(SpeciesIndexSchema.parse(raw).species);
   }
 
+  /** Especies apagadas por el administrador: nadie puede usarlas ni recibirlas. */
+  setDisabled(ids: Iterable<string>): void {
+    this.disabled = new Set(ids);
+  }
+
+  isDisabled(id: string): boolean {
+    return this.disabled.has(id);
+  }
+
   list(): readonly SpeciesEntry[] {
     return this.custom.length === 0 ? this.entries : [...this.entries, ...this.custom];
   }
@@ -57,7 +67,7 @@ export class SpeciesCatalog {
    * `allowed` limita la elección a esas especies; si queda vacío se usa todo el catálogo.
    */
   pick(rng: Rng, preferredId?: string | null, allowed?: ReadonlySet<string>): string {
-    const ok = (id: string) => this.byId.has(id) && (allowed === undefined || allowed.has(id));
+    const ok = (id: string) => this.byId.has(id) && !this.disabled.has(id) && (allowed === undefined || allowed.has(id));
     if (preferredId && ok(preferredId)) return preferredId;
     const pool = this.list().filter((e) => ok(e.id));
     const list = pool.length > 0 ? pool : this.entries;

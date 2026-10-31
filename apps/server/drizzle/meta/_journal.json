@@ -36,6 +36,20 @@
       "when": 1793461524614,
       "tag": "0004_fresh_magdalene",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793465997174,
+      "tag": "0005_clear_photon",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793467002411,
+      "tag": "0006_wooden_doctor_spectrum",
+      "breakpoints": true
     }
   ]
 }
