@@ -23,3 +23,16 @@ export function safeEqual(a: string, b: string): boolean {
   const db = createHash("sha256").update(b).digest();
   return timingSafeEqual(da, db);
 }
+
+export const ACCESS_KEY_PREFIX = "spk_";
+
+/** Clave personal de acceso: 256 bits aleatorios. Se muestra una sola vez; en la base solo va su hash. */
+export function generateAccessKey(): { key: string; hash: string; prefix: string } {
+  const key = `${ACCESS_KEY_PREFIX}${randomBytes(32).toString("base64url")}`;
+  return { key, hash: hashToken(key), prefix: key.slice(0, ACCESS_KEY_PREFIX.length + 4) };
+}
+
+/** ¿Tiene la forma de una clave personal? Evita consultar la base con basura. */
+export function looksLikeAccessKey(key: string): boolean {
+  return /^spk_[A-Za-z0-9_-]{43}$/.test(key);
+}

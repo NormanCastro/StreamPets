@@ -155,7 +155,7 @@ label.check span { display: grid; }
 /* ── Contadores ── */
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .stat {
-  display: grid; gap: 2px; padding: 14px 16px; border-radius: var(--radius); border: 1px solid var(--line);
+  display: grid; gap: 2px; text-align: center; justify-items: center; padding: 14px 16px; border-radius: var(--radius); border: 1px solid var(--line);
   background: linear-gradient(160deg, var(--panel-2), var(--panel));
   box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.05), 0 14px 34px -18px rgba(var(--accent2-rgb), 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
@@ -260,12 +260,11 @@ td select { width: auto; min-width: 140px; padding: 6px 10px; }
 tbody tr.subrow:hover { background: transparent; box-shadow: none; }
 .subrow td { white-space: normal; background: rgba(var(--deep-rgb), 0.35); }
 .grants { display: flex; flex-wrap: wrap; gap: 8px 26px; padding: 4px 2px; }
-.who .pill { margin-left: 8px; }
+.who .star { margin-left: 6px; }
 td select { max-width: 100%; }
 
 /* ── Selector de color ── */
 .themes { position: relative; display: inline-flex; align-items: center; }
-.themes.floating { position: fixed; top: 14px; right: 14px; z-index: 5; }
 button.swatch {
   width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 2px solid transparent; box-shadow: none;
   background: var(--sw); outline: 1px solid rgba(255, 255, 255, 0.22); outline-offset: 0;
@@ -278,3 +277,4 @@ button.swatch.toggle { width: 34px; height: 34px; outline-offset: 3px; outline-c
   border: 1px solid var(--line); border-radius: 999px; background: var(--panel);
   box-shadow: 0 14px 36px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(var(--accent-rgb), 0.08);
 }
+.keycell { display: inline-flex; gap: 8px; align-items: center; }

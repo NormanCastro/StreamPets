@@ -90,25 +90,46 @@ const newCtx = async () => {
   return { ctx, page };
 };
 
+const themeOf = (page) => page.evaluate(() => document.documentElement.dataset.theme);
+const who = (page) => page.locator(".who");
+const picker = (page) => page.getByRole("button", { name: "Cambiar color del panel" });
+
 // 1) la pantalla de entrada muestra el botón de Twitch
 const owner = await newCtx();
 await owner.page.goto(`${BASE}/admin`);
 await owner.page.getByRole("link", { name: "Entrar con Twitch" }).waitFor();
+if ((await picker(owner.page).count()) !== 0) await fail("la pantalla de entrada no debería tener selector de color");
+if ((await themeOf(owner.page)) !== "morado") await fail("la entrada debe ser morada");
 await owner.page.screenshot({ path: shot.replace(".png", "-login.png") });
 console.log("OK botón «Entrar con Twitch» visible");
 
 // 2) la dueña entra con Twitch → ve su panel y la pestaña de admin NO aparece (no entró con la clave)
 nextUser = { sub: "100", login: "nazhika" };
 await owner.page.getByRole("link", { name: "Entrar con Twitch" }).click();
-await owner.page.getByText("@nazhika").waitFor();
+await who(owner.page).filter({ hasText: "Nazhika" }).waitFor();
+const whoText = (await who(owner.page).textContent()) ?? "";
+if (whoText.includes("@") || !whoText.startsWith("Nazhika")) await fail("el nombre debe verse «Nazhika» sin @: " + whoText);
+if (!whoText.includes("⭐")) await fail("el dueño (todo incluido) debería llevar ⭐: " + whoText);
 await owner.page.getByRole("tab", { name: "Mascotas" }).waitFor();
+// los contadores (Total / Subs / En pantalla) van centrados
+const aligns = await owner.page.locator(".stat").evaluateAll((els) => els.map((e) => getComputedStyle(e).textAlign));
+if (aligns.length !== 3 || aligns.some((a) => a !== "center")) await fail("los contadores deberían ir centrados: " + aligns);
+console.log("OK nombre sin @ con mayúscula, ⭐ y contadores centrados");
+
+// el streamer sí puede elegir color, y se guarda
+await picker(owner.page).click();
+await owner.page.getByRole("button", { name: "Color rosado" }).click();
+if ((await themeOf(owner.page)) !== "rosado") await fail("el streamer no pudo cambiar a rosado");
+await owner.page.screenshot({ path: shot.replace(".png", "-streamer-rosado.png") });
+console.log("OK un streamer elige su color");
 if ((await owner.page.getByRole("tab", { name: "Canales" }).count()) !== 0) await fail("un streamer con sesión ve la pestaña Canales");
 console.log("OK entra con Twitch como streamer (sin pestaña Canales)");
 
 // 3) la sesión sobrevive a recargar
 await owner.page.reload();
-await owner.page.getByText("@nazhika").waitFor();
-console.log("OK la sesión sobrevive al recargar");
+await who(owner.page).filter({ hasText: "Nazhika" }).waitFor();
+if ((await themeOf(owner.page)) !== "rosado") await fail("el color del streamer no se guardó");
+console.log("OK la sesión y el color sobreviven al recargar");
 
 // 4) alguien no autorizado es rechazado con mensaje claro
 const intruder = await newCtx();
@@ -122,9 +143,17 @@ console.log("OK un canal no autorizado se rechaza con mensaje");
 // 5) el admin (clave) autoriza a la amiga desde «Canales»
 const adm = await newCtx();
 await adm.page.goto(`${BASE}/admin`);
-await adm.page.getByLabel("Clave de administración").fill(ADMIN);
+await adm.page.evaluate(() => localStorage.setItem("streampets.theme", "rojo")); // aunque haya un color guardado
+await adm.page.reload();
+await adm.page.getByRole("button", { name: "Entrar con clave" }).click();
+await adm.page.getByLabel("Clave de acceso").fill(ADMIN);
 await adm.page.getByRole("button", { name: "Entrar", exact: true }).click();
 await adm.page.getByRole("tab", { name: "Canales" }).click();
+if ((await themeOf(adm.page)) !== "morado") await fail("el panel de administración debe ser morado: " + (await themeOf(adm.page)));
+if ((await picker(adm.page).count()) !== 0) await fail("el panel de administración no debería tener selector de color");
+const admText = ((await who(adm.page).textContent()) ?? "").trim();
+if (admText !== "Admin") await fail("con la clave el encabezado debe decir «Admin»: " + admText);
+console.log("OK login y panel de administración siempre morados, sin selector, y dice «Admin»");
 await adm.page.getByLabel("Usuario de Twitch a autorizar").fill("@Amiga");
 await adm.page.getByRole("button", { name: "Autorizar canal" }).click();
 await adm.page.getByText("@amiga").waitFor();
@@ -135,7 +164,8 @@ const friend = await newCtx();
 nextUser = { sub: "200", login: "amiga" };
 await friend.page.goto(`${BASE}/admin`);
 await friend.page.getByRole("link", { name: "Entrar con Twitch" }).click();
-await friend.page.getByText("@amiga").waitFor();
+await who(friend.page).filter({ hasText: "Amiga" }).waitFor();
+if (((await who(friend.page).textContent()) ?? "").includes("⭐")) await fail("un canal gratis no debería llevar ⭐");
 await friend.page.getByRole("tab", { name: "Overlay para OBS" }).click();
 await friend.page.getByLabel("Nombre del nuevo overlay").fill("OBS amiga");
 await friend.page.getByRole("button", { name: "Crear enlace" }).click();
@@ -165,7 +195,7 @@ await adm.page.getByRole("row", { name: /@amiga/ }).getByRole("button", { name: 
 await adm.page.getByLabel("Zorro para amiga").click(); // casilla controlada: el estado cambia cuando responde el servidor
 await adm.page.getByRole("button", { name: "Especies (1/1)" }).waitFor();
 await friend.page.reload();
-await friend.page.getByText("PREMIUM").waitFor();
+await who(friend.page).filter({ hasText: "⭐" }).waitFor();
 await friend.page.getByRole("tab", { name: "Ajustes" }).click();
 if (await dis("Dragón")) await fail("el dragón debería estar desbloqueado con plan premium");
 if (await dis("Zorro")) await fail("el zorro debería estar desbloqueado con permiso");
@@ -176,12 +206,49 @@ const forbidden = await friend.page.evaluate(async () => (await fetch("/api/admi
 if (forbidden !== 403) await fail("la amiga pudo pedir /channels: " + forbidden);
 console.log("OK una streamer no accede a la lista de canales (403)");
 
+// 6d) clave personal de respaldo: el admin la genera, la amiga entra con ella sin Twitch
+await adm.page.getByRole("row", { name: /@amiga/ }).getByRole("button", { name: "Generar clave" }).click();
+const key = await adm.page.getByLabel("Clave generada").inputValue();
+if (!/^spk_[\w-]{43}$/.test(key)) await fail("clave inesperada: " + key);
+await adm.page.getByRole("button", { name: "Ya la copié" }).click();
+const viaKey = await newCtx();
+await viaKey.page.goto(`${BASE}/admin`);
+if ((await viaKey.page.getByLabel("Clave de acceso").count()) !== 0) await fail("la clave debería estar escondida hasta pulsar el botón");
+await viaKey.page.getByRole("button", { name: "Entrar con clave" }).click();
+await viaKey.page.getByLabel("Clave de acceso").fill("spk_" + "a".repeat(43));
+await viaKey.page.getByRole("button", { name: "Entrar", exact: true }).click();
+await viaKey.page.getByText("Clave incorrecta.").waitFor();
+await viaKey.page.getByLabel("Clave de acceso").fill(key);
+await viaKey.page.getByRole("button", { name: "Entrar", exact: true }).click();
+await who(viaKey.page).filter({ hasText: "Amiga" }).waitFor();
+if ((await viaKey.page.getByRole("tab", { name: "Canales" }).count()) !== 0) await fail("la clave personal no debe dar acceso a Canales");
+console.log("OK clave personal: la genera el admin y la amiga entra sin Twitch (solo a su canal)");
+
+// regenerar cierra la sesión que se abrió con la clave anterior
+adm.page.once("dialog", (d) => d.accept());
+await adm.page.getByRole("row", { name: /@amiga/ }).getByRole("button", { name: "Regenerar" }).click();
+const key2 = await adm.page.getByLabel("Clave generada").inputValue();
+const stale = await viaKey.page.evaluate(async () => (await fetch("/api/admin/me")).status);
+if (stale !== 401) await fail("la sesión de la clave anterior siguió viva: " + stale);
+await adm.page.getByRole("button", { name: "Ya la copié" }).click();
+console.log("OK regenerar la clave cierra las sesiones anteriores");
+// con la clave nueva vuelve a entrar (esta sesión se usa en el paso siguiente)
+await viaKey.page.reload();
+await viaKey.page.getByRole("button", { name: "Entrar con clave" }).click();
+await viaKey.page.getByLabel("Clave de acceso").fill(key2);
+await viaKey.page.getByRole("button", { name: "Entrar", exact: true }).click();
+await who(viaKey.page).filter({ hasText: "Amiga" }).waitFor();
+
 // 8) el admin la quita → su sesión se cierra enseguida
 adm.page.once("dialog", (d) => d.accept());
 await adm.page.getByRole("row", { name: /@amiga/ }).getByRole("button", { name: "Quitar" }).click();
 await adm.page.waitForFunction(() => !document.body.innerText.includes("@amiga"), null, { timeout: 8000 });
 const after = await friend.page.evaluate(async () => (await fetch("/api/admin/me")).status);
 if (after !== 401) await fail("la sesión de la amiga siguió viva: " + after);
+const afterKey = await viaKey.page.evaluate(async () => (await fetch("/api/admin/me")).status);
+if (afterKey !== 401) await fail("la sesión abierta con clave siguió viva: " + afterKey);
+const retry = await viaKey.page.evaluate(async (k) => (await fetch("/auth/key", { method: "POST", headers: { "content-type": "application/json", "x-streampets-csrf": "1" }, body: JSON.stringify({ key: k }) })).status, key2);
+if (retry !== 401) await fail("la clave de un canal quitado siguió sirviendo: " + retry);
 console.log("OK al quitarla, su sesión se cierra");
 
 // 9) salir cierra la sesión de la dueña
@@ -189,6 +256,8 @@ await owner.page.getByRole("button", { name: "Salir" }).click();
 await owner.page.getByRole("link", { name: "Entrar con Twitch" }).waitFor();
 const out = await owner.page.evaluate(async () => (await fetch("/api/admin/me")).status);
 if (out !== 401) await fail("la sesión no se cerró: " + out);
+if ((await themeOf(owner.page)) !== "morado") await fail("al salir la entrada debe volver a morado: " + (await themeOf(owner.page)));
+if ((await picker(owner.page).count()) !== 0) await fail("la entrada no debería tener selector de color");
 await adm.page.screenshot({ path: shot });
 console.log("OK salir cierra la sesión");
 

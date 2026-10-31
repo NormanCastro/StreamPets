@@ -39,6 +39,10 @@ export const allowedChannels = pgTable("allowed_channels", {
   twitchUserId: text("twitch_user_id").unique(),
   /** "free" o "premium": decide qué especies de nivel premium puede usar el canal. */
   plan: text("plan").notNull().default("free"),
+  /** Clave personal de respaldo para entrar sin Twitch. Solo se guarda su hash; el prefijo sirve para reconocerla. */
+  keyHash: text("key_hash").unique(),
+  keyPrefix: text("key_prefix"),
+  keyCreatedAt: timestamp("key_created_at", { withTimezone: true }),
   createdAt: createdAt(),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
 });

@@ -5,7 +5,7 @@ import { OidcError } from "../auth/oidc.js";
 import type { TwitchOAuth } from "../auth/twitch-oauth.js";
 import type { Db } from "../db/client.js";
 import * as repo from "../db/repo.js";
-import { hashToken, safeEqual } from "../lib/tokens.js";
+import { hashToken, looksLikeAccessKey, safeEqual } from "../lib/tokens.js";
 
 export type Role = "admin" | "streamer";
 
@@ -145,6 +145,42 @@ export function registerAuthRoutes(app: FastifyInstance, d: AuthRoutesDeps): voi
   app.get("/auth/status", async (_req, reply) => {
     reply.header("Cache-Control", "no-store");
     return { twitch: d.oauth !== undefined };
+  });
+
+  // Entrada con la clave personal del canal (respaldo para cuando Twitch no funciona).
+  app.post("/auth/key", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (req, reply) => {
+    reply.header("Cache-Control", "no-store");
+    // Crea una sesión, así que exige lo mismo que los cambios con cookie: cabecera propia y origen válido.
+    const origin = req.headers.origin;
+    if (
+      req.headers[CSRF_HEADER] !== "1" ||
+      (origin !== undefined && d.auth.publicOrigin !== undefined && origin !== d.auth.publicOrigin)
+    ) {
+      return reply.code(403).send({ error: "csrf" });
+    }
+    const body = z.object({ key: z.string().max(100) }).strict().safeParse(req.body);
+    const key = body.success ? body.data.key.trim() : "";
+    if (!looksLikeAccessKey(key)) return reply.code(401).send({ error: "invalid_key" });
+    const row = await repo.findAllowedChannelByKeyHash(d.db, hashToken(key));
+    if (!row) return reply.code(401).send({ error: "invalid_key" });
+
+    // Quien nunca entró con Twitch todavía no tiene cuenta: se crea aquí (y Twitch la vinculará después).
+    const streamer =
+      (await repo.findStreamerForAllowed(d.db, row)) ??
+      (await repo.ensureStreamer(d.db, { login: row.login, displayName: row.login }));
+    await repo.deleteExpiredSessions(d.db, now());
+    const token = randomBytes(32).toString("base64url");
+    await repo.createSession(d.db, {
+      streamerId: streamer.id,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(now().getTime() + d.auth.sessionTtlMs),
+    });
+    reply.header(
+      "Set-Cookie",
+      serializeCookie(sessionCookie, token, { secure: d.auth.cookieSecure, maxAgeSec: Math.floor(d.auth.sessionTtlMs / 1000) }),
+    );
+    d.onStreamerReady(streamer.id, streamer.login);
+    return { ok: true };
   });
 
   app.get("/auth/twitch/login", { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } }, async (req, reply) => {

@@ -181,6 +181,15 @@ El panel (`/admin`) tiene dos formas de entrar:
 node scripts/e2e-login.mjs   # login completo en Chromium contra un Twitch de mentira local
 ```
 
+## Clave personal de respaldo
+
+Si a alguien no le funciona el login con Twitch, el administrador puede darle una **clave personal** de su canal: pestaña **Canales** → *Generar clave*. Se muestra una sola vez (en la base solo queda su huella), y quien la tiene entra con **Entrar con clave** a la pantalla de acceso. Da acceso solo al panel de **ese** canal, nunca a *Canales*.
+
+- *Regenerar* o *Revocar* anula la clave anterior y cierra las sesiones abiertas del canal. Quitar el canal de la lista también la anula.
+- El campo «Clave de acceso» sirve también para la clave de administración (`ADMIN_TOKEN`): primero se prueba como clave de un canal y, si no lo es, como administración.
+- Hay límite de intentos (10 por minuto) y la clave tiene 256 bits aleatorios.
+- Es una clave tipo contraseña: enviarla por un medio privado y regenerarla si se filtra.
+
 ## Especies: generales, exclusivas, gratis y premium
 
 Cada especie en `shared-public/assets/species/index.json` puede llevar dos datos (si faltan, valen `general` y `free`):

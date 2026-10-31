@@ -7,7 +7,7 @@ import type { AllowedChannelRow, OverlayRow, SettingsRow } from "../db/schema.js
 import type { ChatService } from "../domain/chat-service.js";
 import type { SpeciesAccess } from "../domain/access.js";
 import type { SpeciesCatalog } from "../domain/species.js";
-import { generateOverlayToken } from "../lib/tokens.js";
+import { generateAccessKey, generateOverlayToken } from "../lib/tokens.js";
 import { authenticate, cookieName, serializeCookie } from "./auth.js";
 import type { AuthSettings, Role } from "./auth.js";
 import type { OverlayHub } from "./hub.js";
@@ -180,6 +180,9 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
         linked: r.twitchUserId !== null,
         owner: r.login === deps.ownerLogin,
         plan: repo.asPlan(r.plan),
+        hasKey: r.keyHash !== null,
+        keyPrefix: r.keyPrefix,
+        keyCreatedAt: r.keyCreatedAt,
         species: grants,
         createdAt: r.createdAt,
         lastLoginAt: r.lastLoginAt,
@@ -199,6 +202,32 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
         const row = await repo.addAllowedChannel(db, body.login);
         const grants = await repo.listChannelGrants(db);
         return reply.code(201).send(channelItem(row, grants.get(row.id) ?? []));
+      });
+
+      // Clave personal de respaldo de un canal: se muestra una sola vez al generarla.
+      admin.post("/channels/:login/key", async (req, reply) => {
+        if (!onlyAdmin(req, reply)) return reply;
+        const params = parse(z.object({ login: TwitchLoginSchema }), req.params, reply);
+        if (!params) return reply;
+        if (params.login === deps.ownerLogin) return fail(reply, 400, "owner");
+        const k = generateAccessKey();
+        const row = await repo.setChannelKey(db, params.login, { hash: k.hash, prefix: k.prefix });
+        if (!row) return fail(reply, 404, "not_found");
+        // Si la clave anterior se filtró, lo que se abrió con ella tiene que cerrarse.
+        const streamer = await repo.findStreamerForAllowed(db, row);
+        if (streamer) await repo.deleteSessionsForStreamer(db, streamer.id);
+        return reply.code(201).send({ key: k.key, prefix: k.prefix });
+      });
+
+      admin.delete("/channels/:login/key", async (req, reply) => {
+        if (!onlyAdmin(req, reply)) return reply;
+        const params = parse(z.object({ login: TwitchLoginSchema }), req.params, reply);
+        if (!params) return reply;
+        const row = await repo.clearChannelKey(db, params.login);
+        if (!row) return fail(reply, 404, "not_found");
+        const streamer = await repo.findStreamerForAllowed(db, row);
+        if (streamer) await repo.deleteSessionsForStreamer(db, streamer.id);
+        return reply.code(204).send();
       });
 
       // Plan y especies exclusivas de un canal.

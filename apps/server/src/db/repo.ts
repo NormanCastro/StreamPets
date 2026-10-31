@@ -429,6 +429,37 @@ export async function findStreamerForAllowed(db: Db, row: AllowedChannelRow): Pr
   return (await db.select().from(streamers).where(eq(streamers.login, row.login)))[0];
 }
 
+// ───────────────────────────── clave personal de respaldo ─────────────────────────────
+
+/** Guarda (reemplaza) la clave personal del canal. Devuelve undefined si el canal no existe. */
+export async function setChannelKey(
+  db: Db,
+  login: string,
+  key: { hash: string; prefix: string },
+): Promise<AllowedChannelRow | undefined> {
+  return (
+    await db
+      .update(allowedChannels)
+      .set({ keyHash: key.hash, keyPrefix: key.prefix, keyCreatedAt: new Date() })
+      .where(eq(allowedChannels.login, login))
+      .returning()
+  )[0];
+}
+
+export async function clearChannelKey(db: Db, login: string): Promise<AllowedChannelRow | undefined> {
+  return (
+    await db
+      .update(allowedChannels)
+      .set({ keyHash: null, keyPrefix: null, keyCreatedAt: null })
+      .where(eq(allowedChannels.login, login))
+      .returning()
+  )[0];
+}
+
+export async function findAllowedChannelByKeyHash(db: Db, keyHash: string): Promise<AllowedChannelRow | undefined> {
+  return (await db.select().from(allowedChannels).where(eq(allowedChannels.keyHash, keyHash)))[0];
+}
+
 // ───────────────────────────── planes y especies por canal ─────────────────────────────
 
 export type ChannelPlan = "free" | "premium";

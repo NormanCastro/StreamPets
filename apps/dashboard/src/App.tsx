@@ -5,9 +5,15 @@ import { ChannelsPanel } from "./components/ChannelsPanel";
 import { Login, loginErrorMessage } from "./components/Login";
 import { Logo } from "./components/Logo";
 import { ThemePicker } from "./components/ThemePicker";
+import { DEFAULT_THEME, applyTheme, loadTheme } from "./theme";
 import { OverlaysPanel } from "./components/OverlaysPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { ViewersPanel } from "./components/ViewersPanel";
+
+/** Primera letra en mayúscula (Twitch entrega el usuario en minúsculas). */
+function capitalize(name: string): string {
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
 
 type Tab = "viewers" | "settings" | "overlays" | "channels";
 const BASE_TABS: Array<{ id: Tab; label: string }> = [
@@ -58,6 +64,13 @@ export function App() {
   useEffect(() => {
     void loadMe();
   }, [loadMe]);
+
+  // El color elegido solo vale para las sesiones de streamer; la entrada y el panel de administración son siempre morados.
+  const role = me?.role;
+  useEffect(() => {
+    if (me === undefined) return; // aún se está comprobando la sesión
+    applyTheme(role === "streamer" ? loadTheme() : DEFAULT_THEME);
+  }, [me, role]);
 
   const authed = me !== null && me !== undefined;
   useEffect(() => {
@@ -113,11 +126,15 @@ export function App() {
             </button>
           ))}
         </nav>
-        <ThemePicker />
+        {me.role === "streamer" && <ThemePicker />}
         {me.streamer && (
           <span className="who" title={me.role === "admin" ? "Administración" : "Sesión de Twitch"}>
-            @{me.streamer.login}
-            {me.role === "streamer" && me.plan === "premium" && <span className="pill sub">PREMIUM</span>}
+            {me.role === "admin" ? "Admin" : capitalize(me.streamer.login)}
+            {me.role === "streamer" && me.plan === "premium" && (
+              <span className="star" role="img" aria-label="Plan premium" title="Plan premium">
+                ⭐
+              </span>
+            )}
           </span>
         )}
         <button className="ghost" onClick={() => void logout()}>

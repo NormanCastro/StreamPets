@@ -4,7 +4,7 @@ import { THEMES, applyTheme, loadTheme, saveTheme } from "../theme";
 import type { ThemeId } from "../theme";
 
 /** Botón de color que abre los colores disponibles. La elección se guarda en este navegador. */
-export function ThemePicker({ floating = false }: { floating?: boolean }) {
+export function ThemePicker() {
   const [current, setCurrent] = useState<ThemeId>(loadTheme);
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -32,7 +32,7 @@ export function ThemePicker({ floating = false }: { floating?: boolean }) {
 
   const now = THEMES.find((t) => t.id === current) ?? THEMES[0];
   return (
-    <div className={floating ? "themes floating" : "themes"} ref={box}>
+    <div className="themes" ref={box}>
       <button
         type="button"
         className="swatch toggle"

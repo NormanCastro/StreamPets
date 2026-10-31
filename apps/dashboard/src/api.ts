@@ -70,6 +70,9 @@ export interface ChannelItem {
   linked: boolean;
   owner: boolean;
   plan: Plan;
+  /** Tiene una clave personal de respaldo (solo se ve su comienzo). */
+  hasKey: boolean;
+  keyPrefix: string | null;
   /** Especies exclusivas que tiene permitidas. */
   species: string[];
   createdAt: string;
@@ -93,7 +96,7 @@ export function describeError(err: unknown): string {
   if (err.status === 403 && err.code === "species_locked") return "Esa especie no está incluida en tu plan.";
   if (err.status === 403) return err.code === "owner" ? "Ese es tu canal: no se puede quitar." : "No tienes permiso para hacer eso.";
   if (err.status === 404) return "No encontrado (puede que ya no exista).";
-  if (err.status === 429) return "Demasiadas solicitudes, espera un momento.";
+  if (err.status === 429) return "Demasiados intentos, espera un minuto.";
   if (err.status === 400 && err.code === "owner") return "Ese es tu canal: no se puede quitar.";
   if (err.code === "unknown_species") return "Esa especie no existe.";
   if (err.code === "invalid_request" && Array.isArray(err.details)) {
@@ -186,6 +189,10 @@ export const api = {
   logout: () => request<void>("POST", "/api/admin/logout"),
   channels: () => request<{ items: ChannelItem[] }>("GET", "/api/admin/channels"),
   addChannel: (login: string) => request<ChannelItem>("POST", "/api/admin/channels", { login }),
+  enterWithKey: (key: string) => request<{ ok: boolean }>("POST", "/auth/key", { key }),
+  createChannelKey: (login: string) =>
+    request<{ key: string; prefix: string }>("POST", `/api/admin/channels/${encodeURIComponent(login)}/key`),
+  revokeChannelKey: (login: string) => request<void>("DELETE", `/api/admin/channels/${encodeURIComponent(login)}/key`),
   patchChannel: (login: string, body: { plan?: Plan; species?: string[] }) =>
     request<ChannelItem>("PATCH", `/api/admin/channels/${encodeURIComponent(login)}`, body),
   removeChannel: (login: string) => request<void>("DELETE", `/api/admin/channels/${encodeURIComponent(login)}`),

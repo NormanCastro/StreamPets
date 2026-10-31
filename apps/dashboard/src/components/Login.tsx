@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { LogoFull } from "./Logo";
-import { ThemePicker } from "./ThemePicker";
-import { api, describeError, setToken } from "../api";
+import { ApiError, api, describeError, setToken } from "../api";
 
 const LOGIN_ERRORS: Record<string, string> = {
   denied: "Cancelaste el acceso en Twitch.",
@@ -23,6 +22,7 @@ export function Login({ onLogin, notice }: { onLogin: () => void; notice?: strin
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [twitch, setTwitch] = useState<boolean | null>(null);
+  const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,13 +41,25 @@ export function Login({ onLogin, notice }: { onLogin: () => void; notice?: strin
     if (!token) return;
     setBusy(true);
     setError("");
-    setToken(token);
     try {
-      await api.me();
-      onLogin();
+      // Primero como clave personal de un canal; si no lo es, como clave de administración.
+      try {
+        await api.enterWithKey(token);
+        onLogin();
+        return;
+      } catch (err) {
+        if (!(err instanceof ApiError) || err.status !== 401) throw err;
+      }
+      setToken(token);
+      try {
+        await api.me();
+        onLogin();
+      } catch (err) {
+        setToken(null);
+        throw err;
+      }
     } catch (err) {
-      setToken(null);
-      setError(describeError(err));
+      setError(err instanceof ApiError && err.status === 401 ? "Clave incorrecta." : describeError(err));
     } finally {
       setBusy(false);
     }
@@ -55,7 +67,6 @@ export function Login({ onLogin, notice }: { onLogin: () => void; notice?: strin
 
   return (
     <div className="login">
-      <ThemePicker floating />
       <div className="login-box">
         <LogoFull />
         <div className="card login-card">
@@ -73,25 +84,33 @@ export function Login({ onLogin, notice }: { onLogin: () => void; notice?: strin
             </p>
           )}
 
-          <div className="divider" role="separator">
-            <span>o con la clave de administración</span>
-          </div>
-
-          <form onSubmit={(e) => void submit(e)} className="login-key">
-            <label>
-              Clave de administración
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-              />
-            </label>
-            {error && <p className="error" role="alert">{error}</p>}
-            <button type="submit" className="ghost" disabled={busy || value.trim() === ""}>
-              {busy ? "Entrando…" : "Entrar"}
+          {showKey ? (
+            <>
+              <div className="divider" role="separator">
+                <span>con tu clave de acceso</span>
+              </div>
+              <form onSubmit={(e) => void submit(e)} className="login-key">
+                <label>
+                  Clave de acceso
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    autoFocus
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                  />
+                </label>
+                {error && <p className="error" role="alert">{error}</p>}
+                <button type="submit" className="ghost" disabled={busy || value.trim() === ""}>
+                  {busy ? "Entrando…" : "Entrar"}
+                </button>
+              </form>
+            </>
+          ) : (
+            <button type="button" className="ghost" onClick={() => setShowKey(true)}>
+              Entrar con clave
             </button>
-          </form>
+          )}
         </div>
       </div>
     </div>

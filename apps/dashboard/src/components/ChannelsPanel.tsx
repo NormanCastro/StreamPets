@@ -11,6 +11,8 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const [fresh, setFresh] = useState<{ login: string; key: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const exclusive = species.filter((s) => s.scope === "exclusive");
 
@@ -62,6 +64,39 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
     void run(() => api.removeChannel(c.login));
   };
 
+  const makeKey = (c: ChannelItem) => {
+    if (
+      c.hasKey &&
+      !window.confirm(
+        `¿Generar una clave nueva para @${c.login}? La anterior deja de funcionar y se cierran sus sesiones abiertas.`,
+      )
+    )
+      return;
+    void run(async () => {
+      const r = await api.createChannelKey(c.login);
+      setFresh({ login: c.login, key: r.key });
+      setCopied(false);
+    });
+  };
+
+  const revokeKey = (c: ChannelItem) => {
+    if (!window.confirm(`¿Quitar la clave de @${c.login}? Dejará de funcionar y se cierran sus sesiones abiertas.`)) return;
+    void run(async () => {
+      await api.revokeChannelKey(c.login);
+      if (fresh?.login === c.login) setFresh(null);
+    });
+  };
+
+  async function copyKey() {
+    if (!fresh) return;
+    try {
+      await navigator.clipboard.writeText(fresh.key);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
   const setPlan = (c: ChannelItem, plan: Plan) => {
     if (plan === c.plan) return;
     if (
@@ -93,6 +128,23 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
       </p>
       {error && <p className="error" role="alert">{error}</p>}
 
+      {fresh && (
+        <div className="card notice" role="status">
+          <strong>Clave de @{fresh.login}</strong>
+          <p className="muted">
+            Cópiala y envíasela por un medio privado: por seguridad no se vuelve a mostrar. Con ella entra al panel de su canal (solo
+            al suyo) desde «Entrar con clave».
+          </p>
+          <input readOnly value={fresh.key} aria-label="Clave generada" onFocus={(e) => e.currentTarget.select()} />
+          <div className="row end">
+            <button className="ghost" onClick={() => setFresh(null)}>
+              Ya la copié
+            </button>
+            <button onClick={() => void copyKey()}>{copied ? "¡Copiada!" : "Copiar clave"}</button>
+          </div>
+        </div>
+      )}
+
       <form className="toolbar" onSubmit={add}>
         <input
           placeholder="Usuario de Twitch (ej. pepito_tv)"
@@ -114,6 +166,7 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
               <th>Estado</th>
               <th>Plan</th>
               <th>Especies exclusivas</th>
+              <th>Clave de respaldo</th>
               <th>Último ingreso</th>
               <th />
             </tr>
@@ -153,6 +206,23 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
                       </button>
                     )}
                   </td>
+                  <td>
+                    {c.owner ? (
+                      <span className="muted">—</span>
+                    ) : (
+                      <span className="keycell">
+                        {c.hasKey && <span className="muted mono">{c.keyPrefix}…</span>}
+                        <button className="ghost" disabled={busy} onClick={() => makeKey(c)}>
+                          {c.hasKey ? "Regenerar" : "Generar clave"}
+                        </button>
+                        {c.hasKey && (
+                          <button className="danger" disabled={busy} onClick={() => revokeKey(c)}>
+                            Revocar
+                          </button>
+                        )}
+                      </span>
+                    )}
+                  </td>
                   <td className="muted">{c.lastLoginAt ? new Date(c.lastLoginAt).toLocaleString("es-CL") : "—"}</td>
                   <td className="actions">
                     {!c.owner && (
@@ -164,7 +234,7 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
                 </tr>
                 {open === c.login && !c.owner && (
                   <tr className="subrow">
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <div className="grants">
                         {exclusive.map((s) => (
                           <label key={s.id} className="check">
@@ -189,7 +259,7 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
             ))}
             {loaded && items.length === 0 && (
               <tr>
-                <td colSpan={6} className="empty">Aún no hay canales autorizados.</td>
+                <td colSpan={7} className="empty">Aún no hay canales autorizados.</td>
               </tr>
             )}
           </tbody>

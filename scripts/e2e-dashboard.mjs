@@ -39,13 +39,14 @@ page.on("console", (m) => { if (m.type() === "error" && !/status of (401|400)/.t
 
 // 1) /admin redirige y pide clave; una clave mala se rechaza
 await page.goto(`${BASE}/admin`);
-await page.getByLabel("Clave de administración").fill("clave-mala");
+await page.getByRole("button", { name: "Entrar con clave" }).click();
+await page.getByLabel("Clave de acceso").fill("clave-mala");
 await page.getByRole("button", { name: "Entrar" }).click();
 await page.getByText("Clave incorrecta.").waitFor();
 console.log("OK clave incorrecta rechazada");
 
 // 2) clave buena
-await page.getByLabel("Clave de administración").fill(ADMIN);
+await page.getByLabel("Clave de acceso").fill(ADMIN);
 await page.getByRole("button", { name: "Entrar" }).click();
 await page.getByText("4 espectadores").waitFor();
 console.log("OK entra y lista 4 espectadores");
@@ -106,9 +107,10 @@ console.log("OK error de validación mostrado");
 
 // 7) salir y volver a pedir clave
 await page.getByRole("button", { name: "Salir" }).click();
-await page.getByLabel("Clave de administración").waitFor();
+await page.getByRole("button", { name: "Entrar con clave" }).click();
+await page.getByLabel("Clave de acceso").waitFor();
 await page.screenshot({ path: shot.replace(".png", "-login.png") });
-await page.getByLabel("Clave de administración").fill(ADMIN);
+await page.getByLabel("Clave de acceso").fill(ADMIN);
 await page.getByRole("button", { name: "Entrar" }).click();
 await page.getByRole("tab", { name: "Mascotas" }).click();
 await page.getByText("4 espectadores").waitFor();
