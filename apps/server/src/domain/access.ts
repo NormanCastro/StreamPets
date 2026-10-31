@@ -8,13 +8,20 @@ export interface AccessInfo {
   grants: ReadonlySet<string>;
   /** El dueño de la instalación puede usar todo. */
   unrestricted: boolean;
+  /** Canal que consulta (para las pets personalizadas, que son de un solo canal). */
+  streamerId?: string | undefined;
 }
 
 /**
  * Regla: una especie "exclusiva" solo la usan los canales listados para ella; una "premium" solo los
  * canales con plan premium. Si es exclusiva Y premium hacen falta las dos cosas.
  */
-export function canUse(entry: Pick<SpeciesEntry, "id" | "scope" | "tier">, a: AccessInfo): boolean {
+export function canUse(
+  entry: Pick<SpeciesEntry, "id" | "scope" | "tier"> & { ownerStreamerId?: string | undefined },
+  a: AccessInfo,
+): boolean {
+  // Una pet personalizada la usa solo el canal que la subió (ni siquiera el dueño de la instalación).
+  if (entry.ownerStreamerId !== undefined) return entry.ownerStreamerId === a.streamerId;
   if (a.unrestricted) return true;
   if (entry.scope === "exclusive" && !a.grants.has(entry.id)) return false;
   if (entry.tier === "premium" && a.plan !== "premium") return false;
@@ -30,9 +37,9 @@ export class SpeciesAccess {
   ) {}
 
   async info(streamerId: string): Promise<AccessInfo> {
-    if (streamerId === this.ownerStreamerId) return { plan: "premium", grants: new Set(), unrestricted: true };
+    if (streamerId === this.ownerStreamerId) return { plan: "premium", grants: new Set(), unrestricted: true, streamerId };
     const a = await repo.getAccessForStreamer(this.db, streamerId);
-    return { plan: a.plan, grants: new Set(a.grants), unrestricted: false };
+    return { plan: a.plan, grants: new Set(a.grants), unrestricted: false, streamerId };
   }
 
   /** Ids de las especies que este streamer puede usar. */

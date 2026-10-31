@@ -10,6 +10,7 @@ import type { SpeciesCatalog } from "../domain/species.js";
 import { generateAccessKey, generateOverlayToken } from "../lib/tokens.js";
 import { authenticate, cookieName, serializeCookie } from "./auth.js";
 import type { AuthSettings, Role } from "./auth.js";
+import { registerCustomPetAdminRoutes } from "./custom-pets.js";
 import type { OverlayHub } from "./hub.js";
 
 export interface AdminDeps {
@@ -139,12 +140,22 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
         return false;
       };
 
+      // Modera pets personalizadas: la clave de administración o el dueño de la instalación.
+      const isModerator = (req: FastifyRequest): boolean => role(req) === "admin" || sid(req) === deps.streamerId;
+
+      registerCustomPetAdminRoutes(
+        admin,
+        { db, service, species, access, ownerStreamerId: deps.streamerId, ...(deps.now ? { now: deps.now } : {}) },
+        { sid, isModerator },
+      );
+
       admin.get("/me", async (req) => {
         const streamer = await repo.getStreamer(db, sid(req));
         return {
           streamer: streamer ? { login: streamer.login, displayName: streamer.displayName } : null,
           role: role(req),
           plan: (await access.info(sid(req))).plan,
+          moderator: isModerator(req),
           twitch: deps.twitchStatus(sid(req), role(req)),
         };
       });
@@ -153,14 +164,19 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
       admin.get("/species", async (req) => {
         const allowed = await access.allowedIds(sid(req));
         return {
-          species: species.list().map((e) => ({
-            id: e.id,
-            name: e.name,
-            url: e.url,
-            scope: e.scope,
-            tier: e.tier,
-            locked: !allowed.has(e.id),
-          })),
+          // Las pets personalizadas de otros canales no se muestran.
+          species: species
+            .list()
+            .filter((e) => e.ownerStreamerId === undefined || e.ownerStreamerId === sid(req))
+            .map((e) => ({
+              id: e.id,
+              name: e.name,
+              url: e.url,
+              scope: e.scope,
+              tier: e.tier,
+              custom: e.ownerStreamerId !== undefined,
+              locked: !allowed.has(e.id),
+            })),
         };
       });
 
@@ -250,7 +266,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
           for (const id of list) {
             const e = species.list().find((x) => x.id === id);
             if (!e) return fail(reply, 400, "unknown_species");
-            if (e.scope !== "exclusive") return fail(reply, 400, "not_exclusive");
+            if (e.scope !== "exclusive" || e.ownerStreamerId !== undefined) return fail(reply, 400, "not_exclusive");
           }
         }
         const found = (await repo.listAllowedChannels(db)).find((r) => r.login === params.login);

@@ -17,8 +17,14 @@ const server = spawn("pnpm", ["--filter", "@streampets/server", "exec", "tsx", "
 });
 let browser;
 const fail = async (m) => { console.error("FALLO:", m); await browser?.close().catch(() => {}); server.kill(); process.exit(1); };
-const api = async (method, path, body) => {
+const adminApi = async (method, path, body) => {
   const r = await fetch(BASE + path, { method, headers: { authorization: `Bearer ${ADMIN}`, ...(body ? { "content-type": "application/json" } : {}) }, body: body && JSON.stringify(body) });
+  return r.status === 204 ? null : r.json();
+};
+// El panel de un canal se prueba como lo haría una streamer: con su clave personal (el administrador solo ve «Canales»).
+let cookie = "";
+const api = async (method, path, body) => {
+  const r = await fetch(BASE + path, { method, headers: { cookie, "x-streampets-csrf": "1", ...(body ? { "content-type": "application/json" } : {}) }, body: body && JSON.stringify(body) });
   return r.status === 204 ? null : r.json();
 };
 for (let i = 0; ; i++) {
@@ -27,6 +33,12 @@ for (let i = 0; ; i++) {
   await new Promise((r) => setTimeout(r, 200));
 }
 const until = async (cond, label, ms = 6000) => { const t = Date.now(); while (!(await cond())) { if (Date.now() - t > ms) await fail("timeout: " + label); await new Promise((r) => setTimeout(r, 50)); } };
+
+await adminApi("POST", "/api/admin/channels", { login: "amiga" });
+const KEY = (await adminApi("POST", "/api/admin/channels/amiga/key")).key;
+const entered = await fetch(BASE + "/auth/key", { method: "POST", headers: { "content-type": "application/json", "x-streampets-csrf": "1" }, body: JSON.stringify({ key: KEY }) });
+if (!entered.ok) await fail("no se pudo entrar con la clave del canal: " + entered.status);
+cookie = entered.headers.get("set-cookie").split(";")[0];
 
 for (const login of ["luna", "kiko", "nazhi", "mochi"]) await api("POST", "/api/admin/dev/chat", { login, isSubscriber: login === "luna" || login === "nazhi" });
 
@@ -46,7 +58,7 @@ await page.getByText("Clave incorrecta.").waitFor();
 console.log("OK clave incorrecta rechazada");
 
 // 2) clave buena
-await page.getByLabel("Clave de acceso").fill(ADMIN);
+await page.getByLabel("Clave de acceso").fill(KEY);
 await page.getByRole("button", { name: "Entrar" }).click();
 await page.getByText("4 espectadores").waitFor();
 console.log("OK entra y lista 4 espectadores");
@@ -110,12 +122,27 @@ await page.getByRole("button", { name: "Salir" }).click();
 await page.getByRole("button", { name: "Entrar con clave" }).click();
 await page.getByLabel("Clave de acceso").waitFor();
 await page.screenshot({ path: shot.replace(".png", "-login.png") });
-await page.getByLabel("Clave de acceso").fill(ADMIN);
+await page.getByLabel("Clave de acceso").fill(KEY);
 await page.getByRole("button", { name: "Entrar" }).click();
 await page.getByRole("tab", { name: "Mascotas" }).click();
 await page.getByText("4 espectadores").waitFor();
 await page.screenshot({ path: shot });
 console.log("OK salir y volver a entrar");
+
+// El administrador (clave de administración) solo ve «Canales»: nada de mascotas, contadores ni enlaces de OBS.
+const adminCtx = await browser.newContext({ viewport: { width: 1100, height: 600 } });
+const ap = await adminCtx.newPage();
+await ap.goto(`${BASE}/admin`);
+await ap.getByRole("button", { name: "Entrar con clave" }).click();
+await ap.getByLabel("Clave de acceso").fill(ADMIN);
+await ap.getByRole("button", { name: "Entrar", exact: true }).click();
+await ap.getByRole("tab", { name: "Canales" }).waitFor();
+await ap.locator(".who").filter({ hasText: "Admin" }).waitFor();
+for (const t of ["Mascotas", "Ajustes", "Overlay para OBS"]) if ((await ap.getByRole("tab", { name: t }).count()) !== 0) await fail(`el administrador no debería ver la pestaña ${t}`);
+if ((await ap.locator(".stat").count()) !== 0) await fail("el administrador no debería ver contadores de espectadores");
+if ((await ap.getByText("espectadores").count()) !== 0) await fail("el administrador no debería ver espectadores");
+await ap.screenshot({ path: shot.replace(".png", "-admin.png") });
+console.log("OK el administrador solo ve «Canales»");
 
 if (errors.length) await fail("errores de consola: " + errors.join(" | "));
 await browser.close();

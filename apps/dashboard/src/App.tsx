@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { api, describeError, setToken, setUnauthorizedHandler } from "./api";
 import type { Me, Species } from "./api";
 import { ChannelsPanel } from "./components/ChannelsPanel";
+import { ModerationPanel } from "./components/ModerationPanel";
+import { MyPetsPanel } from "./components/MyPetsPanel";
 import { Login, loginErrorMessage } from "./components/Login";
 import { Logo } from "./components/Logo";
 import { ThemePicker } from "./components/ThemePicker";
@@ -15,12 +17,16 @@ function capitalize(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-type Tab = "viewers" | "settings" | "overlays" | "channels";
+type Tab = "viewers" | "settings" | "overlays" | "channels" | "mypets" | "moderation";
 const BASE_TABS: Array<{ id: Tab; label: string }> = [
   { id: "viewers", label: "Mascotas" },
   { id: "settings", label: "Ajustes" },
   { id: "overlays", label: "Overlay para OBS" },
+  { id: "mypets", label: "Mis pets" },
 ];
+const MODERATION_TAB = { id: "moderation" as Tab, label: "Moderación" };
+
+const ADMIN_TABS: Array<{ id: Tab; label: string }> = [{ id: "channels", label: "Canales" }, MODERATION_TAB];
 
 /** Si volvemos de Twitch con un error, lo leemos una vez y limpiamos la dirección. */
 function takeLoginError(): string {
@@ -104,8 +110,10 @@ export function App() {
   if (me === undefined) return <div className="login"><p className="muted">Cargando…</p></div>;
   if (me === null) return <Login onLogin={() => void loadMe()} {...(notice ? { notice } : {})} />;
 
-  const tabs = me.role === "admin" ? [...BASE_TABS, { id: "channels" as const, label: "Canales" }] : BASE_TABS;
-  const activeTab = tabs.some((t) => t.id === tab) ? tab : "viewers";
+  // El administrador solo gestiona canales: las mascotas, ajustes y enlaces de OBS son de cada streamer
+  // (el tuyo lo manejas entrando con Twitch).
+  const tabs = me.role === "admin" ? ADMIN_TABS : me.moderator ? [...BASE_TABS, MODERATION_TAB] : BASE_TABS;
+  const activeTab = tabs.some((t) => t.id === tab) ? tab : (tabs[0] as { id: Tab }).id;
 
   return (
     <div className="shell">
@@ -147,6 +155,8 @@ export function App() {
         {activeTab === "settings" && <SettingsPanel species={species} />}
         {activeTab === "overlays" && <OverlaysPanel />}
         {activeTab === "channels" && me.role === "admin" && <ChannelsPanel species={species} />}
+        {activeTab === "mypets" && me.role === "streamer" && <MyPetsPanel />}
+        {activeTab === "moderation" && me.moderator && <ModerationPanel />}
       </main>
     </div>
   );

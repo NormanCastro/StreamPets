@@ -29,6 +29,13 @@
       "when": 1793455115658,
       "tag": "0003_confused_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793461524614,
+      "tag": "0004_fresh_magdalene",
+      "breakpoints": true
     }
   ]
 }

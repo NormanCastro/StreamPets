@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  customType,
   foreignKey,
   index,
   integer,
@@ -75,6 +76,33 @@ export const sessions = pgTable(
   },
   (t) => [index("sessions_streamer_idx").on(t.streamerId), index("sessions_expires_idx").on(t.expiresAt)],
 );
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
+
+/**
+ * Pets que suben los canales. El PNG se guarda en la base de datos (el disco de Render gratis se borra
+ * en cada reinicio). Solo las aprobadas llegan al catálogo y al overlay.
+ */
+export const customSpecies = pgTable(
+  "custom_species",
+  {
+    /** Id de especie, p. ej. "u-3fa9c1d2". */
+    id: text("id").primaryKey(),
+    streamerId: uuid("streamer_id")
+      .notNull()
+      .references(() => streamers.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    status: text("status").notNull().default("pending"),
+    rejectReason: text("reject_reason"),
+    png: bytea("png").notNull(),
+    createdAt: createdAt(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  },
+  (t) => [index("custom_species_streamer_idx").on(t.streamerId), index("custom_species_status_idx").on(t.status)],
+);
+export type CustomSpeciesRow = typeof customSpecies.$inferSelect;
 
 export const streamerSettings = pgTable("streamer_settings", {
   streamerId: uuid("streamer_id")

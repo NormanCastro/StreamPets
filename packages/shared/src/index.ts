@@ -73,3 +73,21 @@ export const TwitchLoginSchema = z
   .max(25)
   .regex(/^[A-Za-z0-9_]+$/, "login de Twitch inválido")
   .transform((s) => s.toLowerCase());
+
+/** Pets personalizadas que suben los canales (se revisan antes de mostrarse). */
+export const CUSTOM_PET = {
+  sheetWidth: 520,
+  sheetHeight: 280,
+  cellSize: 40,
+  columns: 13,
+  idleFrames: 8,
+  walkFrames: 13,
+  /** Tamaño máximo del PNG en bytes. */
+  maxBytes: 120_000,
+  nameMax: 30,
+  /** Cuántas pets (pendientes o aprobadas) puede tener un canal según su plan. */
+  quota: { free: 0, premium: 3 } as const,
+} as const;
+
+export const CustomPetStatusSchema = z.enum(["pending", "approved", "rejected"]);
+export type CustomPetStatus = z.infer<typeof CustomPetStatusSchema>;

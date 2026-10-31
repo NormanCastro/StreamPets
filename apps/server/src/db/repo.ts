@@ -2,6 +2,7 @@ import { and, count, desc, eq, gt, ilike, isNull, lt, or, sql } from "drizzle-or
 import type { Db } from "./client.js";
 import {
   allowedChannels,
+  customSpecies,
   overlays,
   pets,
   sessions,
@@ -10,7 +11,7 @@ import {
   streamers,
   viewers,
 } from "./schema.js";
-import type { AllowedChannelRow, OverlayRow, PetRow, SettingsRow, StreamerRow, ViewerRow } from "./schema.js";
+import type { AllowedChannelRow, CustomSpeciesRow, OverlayRow, PetRow, SettingsRow, StreamerRow, ViewerRow } from "./schema.js";
 
 /** Bots habituales de Twitch. Se siembran en los ajustes para que la streamer los vea y los edite. */
 export const DEFAULT_IGNORED_LOGINS: readonly string[] = [
@@ -568,4 +569,88 @@ export async function deleteSessionsForStreamer(db: Db, streamerId: string): Pro
 
 export async function deleteExpiredSessions(db: Db, now: Date): Promise<void> {
   await db.delete(sessions).where(lt(sessions.expiresAt, now));
+}
+
+// ───────────────────────────── pets personalizadas ─────────────────────────────
+
+export type CustomPetMeta = Omit<CustomSpeciesRow, "png">;
+
+const customMetaCols = {
+  id: customSpecies.id,
+  streamerId: customSpecies.streamerId,
+  name: customSpecies.name,
+  status: customSpecies.status,
+  rejectReason: customSpecies.rejectReason,
+  createdAt: customSpecies.createdAt,
+  reviewedAt: customSpecies.reviewedAt,
+};
+
+export async function insertCustomPet(
+  db: Db,
+  input: { id: string; streamerId: string; name: string; png: Buffer },
+): Promise<void> {
+  await db.insert(customSpecies).values(input);
+}
+
+export async function getCustomPet(db: Db, id: string): Promise<CustomSpeciesRow | undefined> {
+  const rows = await db.select().from(customSpecies).where(eq(customSpecies.id, id)).limit(1);
+  return rows[0];
+}
+
+/** Pets de un canal (sin la imagen), las más nuevas primero. */
+export async function listCustomPetsOf(db: Db, streamerId: string): Promise<CustomPetMeta[]> {
+  return db
+    .select(customMetaCols)
+    .from(customSpecies)
+    .where(eq(customSpecies.streamerId, streamerId))
+    .orderBy(desc(customSpecies.createdAt));
+}
+
+/** Todas las pets con el login de su canal, para moderar. */
+export async function listCustomPetsForReview(
+  db: Db,
+  status?: string,
+): Promise<Array<CustomPetMeta & { login: string }>> {
+  const q = db
+    .select({ ...customMetaCols, login: streamers.login })
+    .from(customSpecies)
+    .innerJoin(streamers, eq(streamers.id, customSpecies.streamerId));
+  const rows = status ? await q.where(eq(customSpecies.status, status)).orderBy(customSpecies.createdAt) : await q.orderBy(customSpecies.createdAt);
+  return rows;
+}
+
+/** Cuántas pets cuentan contra el cupo del canal (pendientes y aprobadas). */
+export async function countActiveCustomPets(db: Db, streamerId: string): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(customSpecies)
+    .where(and(eq(customSpecies.streamerId, streamerId), or(eq(customSpecies.status, "pending"), eq(customSpecies.status, "approved"))));
+  return Number(row?.n ?? 0);
+}
+
+export async function listApprovedCustomPets(db: Db): Promise<Array<{ id: string; name: string; streamerId: string }>> {
+  return db
+    .select({ id: customSpecies.id, name: customSpecies.name, streamerId: customSpecies.streamerId })
+    .from(customSpecies)
+    .where(eq(customSpecies.status, "approved"));
+}
+
+export async function reviewCustomPet(
+  db: Db,
+  id: string,
+  status: "approved" | "rejected",
+  reason: string | null,
+  at: Date,
+): Promise<boolean> {
+  const rows = await db
+    .update(customSpecies)
+    .set({ status, rejectReason: status === "rejected" ? reason : null, reviewedAt: at })
+    .where(eq(customSpecies.id, id))
+    .returning({ id: customSpecies.id });
+  return rows.length > 0;
+}
+
+export async function deleteCustomPet(db: Db, id: string): Promise<boolean> {
+  const rows = await db.delete(customSpecies).where(eq(customSpecies.id, id)).returning({ id: customSpecies.id });
+  return rows.length > 0;
 }

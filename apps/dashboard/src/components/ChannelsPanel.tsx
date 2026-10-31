@@ -14,7 +14,7 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
   const [fresh, setFresh] = useState<{ login: string; key: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const exclusive = species.filter((s) => s.scope === "exclusive");
+  const exclusive = species.filter((s) => s.scope === "exclusive" && !s.custom);
 
   const load = useCallback(async () => {
     try {

@@ -206,6 +206,17 @@ El plan y las especies exclusivas se manejan en la pestaña **Canales** (solo co
 
 Lo aplica el **servidor**, no solo el panel: las mascotas nuevas se eligen solo entre las especies del canal, y elegir una bloqueada devuelve 403. Si un canal pierde una especie (le quitas el premium o el permiso), sus espectadores que la usaban pasan a otra especie permitida al instante. El overlay puede cargar cualquier sprite (los archivos son públicos): lo que se controla es quién puede *asignarla*.
 
+## Mascotas propias de cada canal
+
+Los canales con plan **premium** pueden subir hasta **3 mascotas propias** desde la pestaña «Mis pets» (el plan gratis no puede subir ninguna).
+
+- Cada mascota es un único PNG de **520×280** (celdas de 40×40, 13 columnas × 7 filas, sin entrelazado, hasta 120 KB). El panel trae la guía de filas y una plantilla descargable (`/admin/plantilla-pet.png`).
+  Fila 0: 8 rotaciones (south, south-east, east, north-east, north, north-west, west, south-west). Filas 1-3: idle south/east/west (8 cuadros). Filas 4-6: walk south/east/west (13 cuadros). Los pies van en x=20, y=34 de cada celda.
+- Al subirla queda **en revisión** y no se ve en ningún stream. En la pestaña **Moderación** (la clave de administración, o el dueño de la instalación entrando con Twitch) se ve la hoja completa y la animación, y se puede **aprobar, rechazar (con motivo) o eliminar**.
+- Una pet aprobada es exclusiva del canal que la subió (ni siquiera el dueño de la instalación la puede usar). Al rechazarla o eliminarla, quienes la tenían pasan a otra especie.
+- El servidor valida el PNG (firma, medidas, CRC de cada bloque) y guarda una copia limpia, sin metadatos. Las imágenes se guardan en la base de datos (el disco de Render gratis se borra en cada reinicio) y solo las aprobadas se sirven, en `/api/custom-species/<id>/…`.
+- Los cupos por plan están en `CUSTOM_PET.quota` (`packages/shared/src/index.ts`).
+
 ## Pendiente
 
 - Probar el login contra el Twitch real (en pruebas se usa un Twitch simulado); cambiar la clave `ADMIN_TOKEN` compartida cuando ya no haga falta.

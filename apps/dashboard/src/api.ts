@@ -11,6 +11,8 @@ export interface Species {
   tier: SpeciesTier;
   /** true = este canal no puede usarla (se muestra, pero no se puede elegir). */
   locked: boolean;
+  /** Pet subida por el propio canal. */
+  custom?: boolean;
 }
 
 /** Por qué una especie está bloqueada, para mostrarlo en los selectores. */
@@ -64,6 +66,22 @@ export interface Me {
   streamer: { login: string; displayName: string } | null;
   role: UserRole;
   plan: Plan;
+  /** Puede revisar las pets que suben los canales. */
+  moderator?: boolean;
+}
+export type CustomPetStatus = "pending" | "approved" | "rejected";
+export interface CustomPet {
+  id: string;
+  name: string;
+  status: CustomPetStatus;
+  rejectReason: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+  /** La hoja completa como data URL. */
+  png: string | null;
+}
+export interface ReviewPet extends CustomPet {
+  login: string;
 }
 export interface ChannelItem {
   login: string;
@@ -99,6 +117,13 @@ export function describeError(err: unknown): string {
   if (err.status === 429) return "Demasiados intentos, espera un minuto.";
   if (err.status === 400 && err.code === "owner") return "Ese es tu canal: no se puede quitar.";
   if (err.code === "unknown_species") return "Esa especie no existe.";
+  if (err.code === "plan_required") return "Subir mascotas propias es parte del plan premium.";
+  if (err.code === "quota_reached") return "Ya usaste todos los cupos de tu plan. Elimina una para subir otra.";
+  if (err.code === "bad_size") return "El PNG debe medir exactamente 520×280 píxeles.";
+  if (err.code === "not_png") return "El archivo no es un PNG.";
+  if (err.code === "interlaced") return "Guarda el PNG sin entrelazado (interlaced).";
+  if (err.code === "corrupt") return "El PNG está dañado. Vuelve a exportarlo.";
+  if (err.code === "too_large") return "El PNG pesa demasiado (máximo 120 KB).";
   if (err.code === "invalid_request" && Array.isArray(err.details)) {
     return (err.details as Array<{ path: string; message: string }>)
       .map((d) => (d.path ? `${d.path}: ${d.message}` : d.message))
@@ -185,6 +210,16 @@ async function request<T>(method: string, path: string, body?: unknown, signal?:
 
 export const api = {
   me: () => request<Me>("GET", "/api/admin/me"),
+  customPets: () =>
+    request<{ items: CustomPet[]; quota: { used: number; max: number } }>("GET", "/api/admin/custom-pets"),
+  uploadCustomPet: (name: string, png: string) =>
+    request<{ id: string; status: string }>("POST", "/api/admin/custom-pets", { name, png }),
+  deleteCustomPet: (id: string) => request<void>("DELETE", `/api/admin/custom-pets/${id}`),
+  reviewPets: (status: CustomPetStatus | "all") =>
+    request<{ items: ReviewPet[] }>("GET", `/api/admin/moderation/pets?status=${status}`),
+  approvePet: (id: string) => request<unknown>("POST", `/api/admin/moderation/pets/${id}/approve`),
+  rejectPet: (id: string, reason: string) =>
+    request<unknown>("POST", `/api/admin/moderation/pets/${id}/reject`, reason ? { reason } : {}),
   authStatus: () => request<{ twitch: boolean }>("GET", "/auth/status"),
   logout: () => request<void>("POST", "/api/admin/logout"),
   channels: () => request<{ items: ChannelItem[] }>("GET", "/api/admin/channels"),

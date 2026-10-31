@@ -11,10 +11,12 @@ import { ChatService } from "./domain/chat-service.js";
 import { mathRng, systemClock } from "./domain/rng.js";
 import type { Clock, Rng } from "./domain/rng.js";
 import { SpeciesAccess } from "./domain/access.js";
+import { reloadCustomSpecies } from "./domain/custom-pets.js";
 import type { SpeciesCatalog } from "./domain/species.js";
 import type { TwitchOAuth } from "./auth/twitch-oauth.js";
 import { registerAdminRoutes } from "./http/admin.js";
 import { registerAuthRoutes } from "./http/auth.js";
+import { registerCustomPetPublicRoutes } from "./http/custom-pets.js";
 import type { AuthSettings, Role } from "./http/auth.js";
 import { OverlayHub } from "./http/hub.js";
 import { looksLikeOverlayToken } from "./lib/tokens.js";
@@ -113,6 +115,9 @@ export async function buildApp(opts: AppOptions): Promise<BuiltApp> {
     }
   });
 
+  // Pets personalizadas aprobadas (viven en la base de datos).
+  await reloadCustomSpecies(opts.db, opts.species);
+
   // ── Servicio de chat y hub de overlays ──
   const access = new SpeciesAccess(opts.db, opts.species, opts.streamerId);
   let service!: ChatService;
@@ -138,8 +143,12 @@ export async function buildApp(opts: AppOptions): Promise<BuiltApp> {
   app.get("/healthz", async () => ({ ok: true }));
   app.get("/api/species", async (_req, reply) => {
     reply.header("Cache-Control", "public, max-age=60");
-    return { species: opts.species.list() };
+    return {
+      species: opts.species.list().map(({ id, name, url, scope, tier }) => ({ id, name, url, scope, tier })),
+    };
   });
+
+  registerCustomPetPublicRoutes(app, { db: opts.db });
 
   app.get("/ws/overlay", { websocket: true }, async (socket, req) => {
     const token = (req.query as { token?: unknown }).token;
