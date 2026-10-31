@@ -49,7 +49,7 @@ Comprueba que se dibuja el canvas, que las mascotas se mueven, que los comandos 
 - **Tiempo**: la simulación usa `dt` en segundos, con pasos de máximo 0.1 s. La distancia recorrida no depende de los FPS (hay un test que lo comprueba a 30, 144 y 240 FPS).
 - **Especies por datos**: una especie es un `species.json` que apunta al PNG y al JSON exportados por PixelLab y mapea clips (`idle`, `walk`, `run`) a animaciones de la hoja. Añadir un animal no requiere tocar código.
 - **Estados y prioridades**: los comandos externos usan `pet.requestState("JUMP")`. Se aceptan si el estado actual es interrumpible o el nuevo tiene mayor prioridad (el salto no se puede cortar). Las transiciones autónomas salen de una tabla de pesos configurable (`DEFAULT_BEHAVIOR.weights`).
-- **Dirección**: cada mascota mira hacia donde camina usando las vistas `east`/`west` del propio spritesheet (no se espejea nada). SLEEP y SIT usan la vista `south` (de frente).
+- **Dirección**: cada mascota mira hacia donde camina usando las vistas `east`/`west` del propio spritesheet (no se espejea nada). SLEEP y SIT usan la vista `south` (de frente). Vistas obligatorias por animación: **Idle** = east, west y south; **Walk** (y Run, que reutiliza Walk) = east y west.
 - **Profundidad**: cada mascota tiene una `lane` (0–10 px) y se dibujan ordenadas por ella.
 
 ## Alcance de la Fase 1 y límites conocidos
@@ -139,6 +139,10 @@ NODE_PATH=$(npm root -g) node scripts/e2e-dashboard.mjs          # navegador rea
 
 Plan gratuito (según la documentación de Render): el servicio se duerme tras 15 min sin tráfico (despertar tarda ~1 min) y la base gratuita caduca a los 30 días.
 Limitación del diseño: el estado de «quién está en pantalla» vive en la memoria del proceso, así que debe haber **una sola instancia**.
+
+## Especies
+
+Shiba, gato, pingüino, conejo, dino, dragón, honguito, momia y zorro (en `shared-public/assets/species/`). Para sumar otra: carpeta nueva con el PNG, el JSON de la hoja de PixelLab y un `species.json`, más una línea en `index.json`. El dragón usa sus diagonales (south-east/south-west) como east/west.
 
 ## Chat de Twitch
 
