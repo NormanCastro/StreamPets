@@ -1,0 +1,85 @@
+{
+  "character": {
+    "id": "b360d8cb-ef81-4add-9e0a-84c23aab6c1a",
+    "name": "Idle",
+    "prompt": "Cute baby penguin pet, chibi proportions, big round head, small chubby body, short flippers, tiny orange feet, black and white feathers with soft cream belly, small orange beak, rosy cheeks, side view, pixel art, 32x32, dark 1px outline, limited cool palette of about 12 colors, simple shading, clean pixel edges, no anti-aliasing, transparent background, game sprite",
+    "size": {
+      "width": 32,
+      "height": 32
+    },
+    "directions": 8,
+    "view": "side"
+  },
+  "spritesheet": {
+    "path": "Cute_baby_penguin_pet_ch-Idle.png",
+    "cell_size": {
+      "width": 40,
+      "height": 40
+    },
+    "sheet_size": {
+      "width": 320,
+      "height": 240
+    },
+    "columns": 8,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "09bc196d-3173-4a4e-b93e-8b5da1dbecc4",
+        "direction": "south"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "09bc196d-3173-4a4e-b93e-8b5da1dbecc4",
+        "direction": "east"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "09bc196d-3173-4a4e-b93e-8b5da1dbecc4",
+        "direction": "west"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "db6902de-d829-4ee0-81c7-bfaadba1d847",
+        "direction": "east"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "db6902de-d829-4ee0-81c7-bfaadba1d847",
+        "direction": "west"
+      }
+    ]
+  },
+  "export_version": "1.0",
+  "export_date": "2026-10-31T02:31:49.278843+00:00"
+}

@@ -9,6 +9,16 @@ export const CLIP_NAMES: readonly ClipName[] = ["idle", "walk", "run"];
 export type View = "east" | "west" | "south";
 export const VIEWS: readonly View[] = ["east", "west", "south"];
 
+/**
+ * Vistas que cada clip necesita de verdad. Caminar y correr siempre se ven de lado;
+ * la vista de frente solo la usan sentarse y dormir, que animan con "idle".
+ */
+export const REQUIRED_VIEWS: Readonly<Record<ClipName, readonly View[]>> = {
+  idle: ["east", "west", "south"],
+  walk: ["east", "west"],
+  run: ["east", "west"],
+};
+
 export interface ClipDef {
   /** Nombre de la animación dentro del JSON de la hoja (p. ej. "Walk"). */
   readonly source: string;
@@ -77,7 +87,10 @@ export function resolveClips(
     for (const view of VIEWS) {
       const frames = byDir.get(view as Direction);
       if (!frames || frames.length === 0) {
-        throw new SpeciesError(`"${def.id}".${clip}: falta la dirección "${view}" en "${clipDef.source}"`);
+        if (REQUIRED_VIEWS[clip].includes(view)) {
+          throw new SpeciesError(`"${def.id}".${clip}: falta la dirección "${view}" en "${clipDef.source}"`);
+        }
+        continue; // vista opcional: el motor nunca la pide para este clip
       }
       views.set(view, { def: clipDef, frames });
     }

@@ -1,0 +1,32 @@
+{
+  "id": "dragon",
+  "name": "Dragón",
+  "sheetImage": "dragon.png",
+  "sheetMeta": "dragon.sheet.json",
+  "anchor": {
+    "x": 40,
+    "y": 64
+  },
+  "shadow": {
+    "rx": 17,
+    "ry": 3.5
+  },
+  "labelOffsetY": 52,
+  "clips": {
+    "idle": {
+      "source": "Idle",
+      "fps": 4,
+      "loop": true
+    },
+    "walk": {
+      "source": "Walk",
+      "fps": 12,
+      "loop": true
+    },
+    "run": {
+      "source": "Walk",
+      "fps": 19,
+      "loop": true
+    }
+  }
+}

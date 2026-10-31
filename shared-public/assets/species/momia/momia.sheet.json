@@ -1,0 +1,85 @@
+{
+  "character": {
+    "id": "1a5853ce-41dc-4502-bca4-dff60ec60a93",
+    "name": "Idle",
+    "prompt": "Mummy, humanoid, realistic proportions, tall muscular body slightly hunched forward, head wrapped in layered tattered beige and cream bandages with a dark gap across the eyes, bright orange glowing eyes with a soft glow, bandage strips wrapped diagonally across chest, shoulders, forearms, hands, thighs and shins, frayed loose bandage ends hanging from elbows, waist and ankles, visible gaps in the wrapping showing dark shadow underneath, stained and aged cloth with darker tan and brown dirt patches, bare bony hands with wrapped fingers, wrapped feet, arms hanging loosely at its sides, strict side profile facing right, pixel art, 64x64, dark 1px outline, detailed shading with 3 tones per material, palette of about 18 colors, clean pixel edges, no anti-aliasing, no background, game sprite",
+    "size": {
+      "width": 32,
+      "height": 32
+    },
+    "directions": 8,
+    "view": "side"
+  },
+  "spritesheet": {
+    "path": "Mummy_humanoid_realistic-Idle.png",
+    "cell_size": {
+      "width": 48,
+      "height": 48
+    },
+    "sheet_size": {
+      "width": 624,
+      "height": 288
+    },
+    "columns": 13,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "03e3023f-4a89-41e5-a115-2af2b51ba92a",
+        "direction": "east"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "03e3023f-4a89-41e5-a115-2af2b51ba92a",
+        "direction": "west"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 13,
+        "animation": "Idle",
+        "animation_group_id": "5894c9e2-113b-439f-ae8a-97fab802ce87",
+        "direction": "south"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 13,
+        "animation": "Idle",
+        "animation_group_id": "5894c9e2-113b-439f-ae8a-97fab802ce87",
+        "direction": "east"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 13,
+        "animation": "Idle",
+        "animation_group_id": "5894c9e2-113b-439f-ae8a-97fab802ce87",
+        "direction": "west"
+      }
+    ]
+  },
+  "export_version": "1.0",
+  "export_date": "2026-10-31T02:34:37.480207+00:00"
+}

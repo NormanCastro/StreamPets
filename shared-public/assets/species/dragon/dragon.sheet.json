@@ -1,0 +1,93 @@
+{
+  "character": {
+    "id": "530e51b3-c6a3-4887-8876-cb5cea014a57",
+    "name": "Idle",
+    "prompt": "Fierce dragon pet, dark charcoal-purple scales, bright red and orange wing membranes with dark bone ribs, pale tan belly scales, two long curved horns, spiked back ridge, sharp claws, long tail ending in a small burning flame, wings spread wide, strict side profile facing right, pixel art, 64x64, dark 1px outline, limited palette of about 14 colors, simple shading, clean pixel edges, no anti-aliasing, no background, game sprite",
+    "size": {
+      "width": 48,
+      "height": 48
+    },
+    "directions": 8,
+    "view": "side"
+  },
+  "spritesheet": {
+    "path": "Fierce_dragon_pet_dark_c-Idle.png",
+    "cell_size": {
+      "width": 80,
+      "height": 80
+    },
+    "sheet_size": {
+      "width": 1040,
+      "height": 560
+    },
+    "columns": 13,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 4,
+        "animation": "Idle",
+        "animation_group_id": "8d997d96-3018-435a-ad06-0b874089fbd4",
+        "direction": "south"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 4,
+        "animation": "Idle",
+        "animation_group_id": "8d997d96-3018-435a-ad06-0b874089fbd4",
+        "direction": "east"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 4,
+        "animation": "Idle",
+        "animation_group_id": "8d997d96-3018-435a-ad06-0b874089fbd4",
+        "direction": "west"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 13,
+        "animation": "Walk",
+        "animation_group_id": "ecbc470f-381e-459a-989d-25c36b1af558",
+        "direction": "south"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 13,
+        "animation": "Walk",
+        "animation_group_id": "ecbc470f-381e-459a-989d-25c36b1af558",
+        "direction": "east"
+      },
+      {
+        "row": 6,
+        "type": "animation",
+        "frame_count": 13,
+        "animation": "Walk",
+        "animation_group_id": "ecbc470f-381e-459a-989d-25c36b1af558",
+        "direction": "west"
+      }
+    ]
+  },
+  "export_version": "1.0",
+  "export_date": "2026-10-31T02:33:51.133811+00:00"
+}

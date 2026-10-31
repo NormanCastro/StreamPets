@@ -1,0 +1,32 @@
+{
+  "id": "conejo",
+  "name": "Conejo",
+  "sheetImage": "conejo.png",
+  "sheetMeta": "conejo.sheet.json",
+  "anchor": {
+    "x": 20,
+    "y": 34
+  },
+  "shadow": {
+    "rx": 6,
+    "ry": 2.5
+  },
+  "labelOffsetY": 33,
+  "clips": {
+    "idle": {
+      "source": "Idle",
+      "fps": 6,
+      "loop": true
+    },
+    "walk": {
+      "source": "Walk",
+      "fps": 12,
+      "loop": true
+    },
+    "run": {
+      "source": "Walk",
+      "fps": 19,
+      "loop": true
+    }
+  }
+}

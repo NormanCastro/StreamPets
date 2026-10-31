@@ -1,0 +1,32 @@
+{
+  "id": "pinguino",
+  "name": "Pingüino",
+  "sheetImage": "pinguino.png",
+  "sheetMeta": "pinguino.sheet.json",
+  "anchor": {
+    "x": 20,
+    "y": 34
+  },
+  "shadow": {
+    "rx": 6,
+    "ry": 2.5
+  },
+  "labelOffsetY": 33,
+  "clips": {
+    "idle": {
+      "source": "Idle",
+      "fps": 6,
+      "loop": true
+    },
+    "walk": {
+      "source": "Walk",
+      "fps": 10,
+      "loop": true
+    },
+    "run": {
+      "source": "Walk",
+      "fps": 16,
+      "loop": true
+    }
+  }
+}

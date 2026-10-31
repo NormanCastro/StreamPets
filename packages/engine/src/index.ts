@@ -10,7 +10,7 @@ export { Animator } from "./anim/animator.js";
 
 export { parsePixelLabSheet, SheetParseError, DIRECTIONS } from "./assets/pixellab.js";
 export type { ParsedSheet, FrameRect, Direction } from "./assets/pixellab.js";
-export { loadSpecies, resolveClips, SpeciesError, CLIP_NAMES, VIEWS } from "./assets/species.js";
+export { loadSpecies, resolveClips, SpeciesError, CLIP_NAMES, VIEWS, REQUIRED_VIEWS } from "./assets/species.js";
 export type { SpeciesDef, LoadedSpecies, ClipName, ClipDef, View, ResolvedClip } from "./assets/species.js";
 
 export { Stage, DEFAULT_STAGE } from "./world/stage.js";

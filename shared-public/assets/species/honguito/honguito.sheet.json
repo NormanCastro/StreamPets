@@ -1,0 +1,85 @@
+{
+  "character": {
+    "id": "a3654ea2-f446-4e3d-8f37-2dce4ef6a408",
+    "name": "Idle",
+    "prompt": "Cute mushroom creature pet, chibi proportions, large round red mushroom cap with white spots as its head covering, dark underside gills visible under the cap, small cream-colored body, short stubby arms and legs, happy open-mouth smile, round rosy cheeks, small dark eyes, side view, pixel art, 32x32, dark 1px outline, limited palette of about 12 colors, simple shading, clean pixel edges, no anti-aliasing, no background, game sprite",
+    "size": {
+      "width": 32,
+      "height": 32
+    },
+    "directions": 8,
+    "view": "side"
+  },
+  "spritesheet": {
+    "path": "Cute_mushroom_creature_p-Idle.png",
+    "cell_size": {
+      "width": 48,
+      "height": 48
+    },
+    "sheet_size": {
+      "width": 384,
+      "height": 288
+    },
+    "columns": 8,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 4,
+        "animation": "Idle",
+        "animation_group_id": "55bde5c1-9977-40f7-aa6e-8f632205f8ef",
+        "direction": "south"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 4,
+        "animation": "Idle",
+        "animation_group_id": "55bde5c1-9977-40f7-aa6e-8f632205f8ef",
+        "direction": "east"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 4,
+        "animation": "Idle",
+        "animation_group_id": "55bde5c1-9977-40f7-aa6e-8f632205f8ef",
+        "direction": "west"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "eac6229c-f9f5-435f-85bd-38afcb04cc28",
+        "direction": "east"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "eac6229c-f9f5-435f-85bd-38afcb04cc28",
+        "direction": "west"
+      }
+    ]
+  },
+  "export_version": "1.0",
+  "export_date": "2026-10-31T02:33:23.269512+00:00"
+}

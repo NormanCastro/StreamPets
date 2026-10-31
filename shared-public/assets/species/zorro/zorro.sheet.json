@@ -1,0 +1,85 @@
+{
+  "character": {
+    "id": "034cf8a7-af7d-4354-8e7a-1d8ac06cafca",
+    "name": "Idle",
+    "prompt": "Red fox, realistic proportions, slender athletic body, long horizontal torso, medium-sized head with pointed ears with black tips, narrow muzzle, orange-red fur with white fluffy chest and cheeks, black legs like stockings, large bushy tail with a white tip, amber eyes, side view, body fills the full width of the canvas, pixel art, 32x32, dark 1px outline, limited palette of about 12 colors, simple shading, clean pixel edges, no anti-aliasing, no background, game sprite",
+    "size": {
+      "width": 32,
+      "height": 32
+    },
+    "directions": 8,
+    "view": "side"
+  },
+  "spritesheet": {
+    "path": "Red_fox_realistic_propor-Idle.png",
+    "cell_size": {
+      "width": 48,
+      "height": 48
+    },
+    "sheet_size": {
+      "width": 384,
+      "height": 288
+    },
+    "columns": 8,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "74bccc2f-1987-4046-8aad-fe88a7760df9",
+        "direction": "south"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "74bccc2f-1987-4046-8aad-fe88a7760df9",
+        "direction": "east"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "74bccc2f-1987-4046-8aad-fe88a7760df9",
+        "direction": "west"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "c0d0bb41-545b-4008-9313-d7612456075e",
+        "direction": "east"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "c0d0bb41-545b-4008-9313-d7612456075e",
+        "direction": "west"
+      }
+    ]
+  },
+  "export_version": "1.0",
+  "export_date": "2026-10-31T02:34:09.199368+00:00"
+}

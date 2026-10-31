@@ -1,0 +1,85 @@
+{
+  "character": {
+    "id": "37fcb840-97df-4559-8c2b-091a0e666351",
+    "name": "Idle",
+    "prompt": "Fierce raptor dinosaur pet, aggressive look, angry eyes with sharp brow, open jaw with small sharp teeth, muscular compact body, strong hind legs with claws, long thick tail, dark green scales with orange stripes on back and tail, pale yellow belly, small arms with claws, strict side profile, pixel art, 32x32, dark 1px outline, limited palette of about 12 colors, simple shading, clean pixel edges, no anti-aliasing, no background, game sprite",
+    "size": {
+      "width": 32,
+      "height": 32
+    },
+    "directions": 8,
+    "view": "low top-down"
+  },
+  "spritesheet": {
+    "path": "Fierce_raptor_dinosaur_p-Idle.png",
+    "cell_size": {
+      "width": 48,
+      "height": 48
+    },
+    "sheet_size": {
+      "width": 720,
+      "height": 288
+    },
+    "columns": 15,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "19ff6faf-fb3d-4a23-bef8-4b382e71c2c2",
+        "direction": "east"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "19ff6faf-fb3d-4a23-bef8-4b382e71c2c2",
+        "direction": "west"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 15,
+        "animation": "Idle",
+        "animation_group_id": "6d55ed14-8287-4e4c-895d-e8522ee572fc",
+        "direction": "south"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 15,
+        "animation": "Idle",
+        "animation_group_id": "6d55ed14-8287-4e4c-895d-e8522ee572fc",
+        "direction": "east"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 15,
+        "animation": "Idle",
+        "animation_group_id": "6d55ed14-8287-4e4c-895d-e8522ee572fc",
+        "direction": "west"
+      }
+    ]
+  },
+  "export_version": "1.0",
+  "export_date": "2026-10-31T02:32:40.600035+00:00"
+}

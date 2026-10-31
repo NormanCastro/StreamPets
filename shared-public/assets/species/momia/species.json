@@ -1,0 +1,32 @@
+{
+  "id": "momia",
+  "name": "Momia",
+  "sheetImage": "momia.png",
+  "sheetMeta": "momia.sheet.json",
+  "anchor": {
+    "x": 24,
+    "y": 39
+  },
+  "shadow": {
+    "rx": 6,
+    "ry": 2.5
+  },
+  "labelOffsetY": 34,
+  "clips": {
+    "idle": {
+      "source": "Idle",
+      "fps": 9,
+      "loop": true
+    },
+    "walk": {
+      "source": "Walk",
+      "fps": 10,
+      "loop": true
+    },
+    "run": {
+      "source": "Walk",
+      "fps": 16,
+      "loop": true
+    }
+  }
+}

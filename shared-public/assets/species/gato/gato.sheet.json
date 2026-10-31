@@ -1,0 +1,85 @@
+{
+  "character": {
+    "id": "dad709b2-e3e1-4d91-9912-3fdb052ae561",
+    "name": "Idle",
+    "prompt": "Cute brown tabby cat pet, chibi proportions, big head, small stubby body, short legs, long tail with dark rings, sandy brown fur with dark brown tabby stripes on forehead, cheeks, legs and tail, cream white muzzle, light green eyes, small pink nose, pointed ears with pink inner ear, tan orange tone on belly and haunches, side view, pixel art, 32x32, dark 1px outline, limited palette of about 12 colors, simple shading, clean pixel edges, no anti-aliasing, no background, game sprite",
+    "size": {
+      "width": 32,
+      "height": 32
+    },
+    "directions": 8,
+    "view": "side"
+  },
+  "spritesheet": {
+    "path": "Cute_brown_tabby_cat_pet-Idle.png",
+    "cell_size": {
+      "width": 48,
+      "height": 48
+    },
+    "sheet_size": {
+      "width": 384,
+      "height": 288
+    },
+    "columns": 8,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "7a7f11c1-733d-4cc4-b37a-3255b2c4c379",
+        "direction": "east"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "7a7f11c1-733d-4cc4-b37a-3255b2c4c379",
+        "direction": "west"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "a04c0eb1-e9db-422b-a97e-678978d0b637",
+        "direction": "south"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "a04c0eb1-e9db-422b-a97e-678978d0b637",
+        "direction": "east"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "a04c0eb1-e9db-422b-a97e-678978d0b637",
+        "direction": "west"
+      }
+    ]
+  },
+  "export_version": "1.0",
+  "export_date": "2026-10-31T02:32:12.666045+00:00"
+}

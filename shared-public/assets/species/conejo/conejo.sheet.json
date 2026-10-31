@@ -1,0 +1,93 @@
+{
+  "character": {
+    "id": "78383214-0861-4f65-907c-2513773378a0",
+    "name": "Idle",
+    "prompt": "Cute kawaii bunny rabbit, chibi proportions, big round head, tiny fluffy body, short stubby legs, long upright ears with soft pink inner ears, small round cotton tail, soft white fur, big shiny black eyes, tiny pink nose, rosy pink cheeks, sweet innocent expression, side view facing left, standing on all four legs, adorable and playful appearance, pixel art, 32x32 sprite, dark 1px outline, limited pastel palette of about 12 colors, simple clean shading, crisp pixel edges, no anti-aliasing",
+    "size": {
+      "width": 32,
+      "height": 32
+    },
+    "directions": 8,
+    "view": "low top-down"
+  },
+  "spritesheet": {
+    "path": "Cute_kawaii_bunny_rabbit-Idle.png",
+    "cell_size": {
+      "width": 40,
+      "height": 40
+    },
+    "sheet_size": {
+      "width": 520,
+      "height": 280
+    },
+    "columns": 13,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "89c6d113-c328-4f95-83fc-5efff96fa770",
+        "direction": "south"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "89c6d113-c328-4f95-83fc-5efff96fa770",
+        "direction": "east"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "89c6d113-c328-4f95-83fc-5efff96fa770",
+        "direction": "west"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 13,
+        "animation": "Walk",
+        "animation_group_id": "bc7a5f7c-e6ee-4667-b22f-d149588bd34f",
+        "direction": "south"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 13,
+        "animation": "Walk",
+        "animation_group_id": "bc7a5f7c-e6ee-4667-b22f-d149588bd34f",
+        "direction": "east"
+      },
+      {
+        "row": 6,
+        "type": "animation",
+        "frame_count": 13,
+        "animation": "Walk",
+        "animation_group_id": "bc7a5f7c-e6ee-4667-b22f-d149588bd34f",
+        "direction": "west"
+      }
+    ]
+  },
+  "export_version": "1.0",
+  "export_date": "2026-10-31T02:35:00.477357+00:00"
+}

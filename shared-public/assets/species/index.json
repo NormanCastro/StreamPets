@@ -1,5 +1,49 @@
 {
   "species": [
-    { "id": "shiba", "name": "Shiba", "url": "/assets/species/shiba/species.json" }
+    {
+      "id": "shiba",
+      "name": "Shiba",
+      "url": "/assets/species/shiba/species.json"
+    },
+    {
+      "id": "gato",
+      "name": "Gato",
+      "url": "/assets/species/gato/species.json"
+    },
+    {
+      "id": "pinguino",
+      "name": "Pingüino",
+      "url": "/assets/species/pinguino/species.json"
+    },
+    {
+      "id": "conejo",
+      "name": "Conejo",
+      "url": "/assets/species/conejo/species.json"
+    },
+    {
+      "id": "dino",
+      "name": "Dino",
+      "url": "/assets/species/dino/species.json"
+    },
+    {
+      "id": "dragon",
+      "name": "Dragón",
+      "url": "/assets/species/dragon/species.json"
+    },
+    {
+      "id": "honguito",
+      "name": "Honguito",
+      "url": "/assets/species/honguito/species.json"
+    },
+    {
+      "id": "momia",
+      "name": "Momia",
+      "url": "/assets/species/momia/species.json"
+    },
+    {
+      "id": "zorro",
+      "name": "Zorro",
+      "url": "/assets/species/zorro/species.json"
+    }
   ]
 }

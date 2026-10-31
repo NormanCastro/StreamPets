@@ -1,0 +1,32 @@
+{
+  "id": "zorro",
+  "name": "Zorro",
+  "sheetImage": "zorro.png",
+  "sheetMeta": "zorro.sheet.json",
+  "anchor": {
+    "x": 24,
+    "y": 39
+  },
+  "shadow": {
+    "rx": 9,
+    "ry": 2.5
+  },
+  "labelOffsetY": 29,
+  "clips": {
+    "idle": {
+      "source": "Idle",
+      "fps": 6,
+      "loop": true
+    },
+    "walk": {
+      "source": "Walk",
+      "fps": 10,
+      "loop": true
+    },
+    "run": {
+      "source": "Walk",
+      "fps": 16,
+      "loop": true
+    }
+  }
+}

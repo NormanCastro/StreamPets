@@ -95,6 +95,37 @@ describe("resolveClips", () => {
     }
   });
 
+  it("walk y run no necesitan la vista de frente, pero idle sí", () => {
+    const withoutSouth = (anim: string) => ({
+      ...sheet,
+      animations: new Map(
+        [...sheet.animations].map(([name, byDir]) => [
+          name,
+          name === anim ? new Map([...byDir].filter(([dir]) => dir !== "south")) : byDir,
+        ]),
+      ),
+    });
+    const noWalkSouth = resolveClips(shibaDef, withoutSouth("Walk"));
+    expect(noWalkSouth.get("walk")?.get("east")?.frames.length).toBeGreaterThan(0);
+    expect(noWalkSouth.get("walk")?.get("south")).toBeUndefined();
+    expect(noWalkSouth.get("run")?.get("west")?.frames.length).toBeGreaterThan(0);
+    expect(noWalkSouth.get("idle")?.get("south")?.frames.length).toBeGreaterThan(0);
+    expect(() => resolveClips(shibaDef, withoutSouth("Idle"))).toThrow(/idle.*falta la dirección "south"/);
+  });
+
+  it("walk exige east y west", () => {
+    const withoutWest = {
+      ...sheet,
+      animations: new Map(
+        [...sheet.animations].map(([name, byDir]) => [
+          name,
+          name === "Walk" ? new Map([...byDir].filter(([dir]) => dir !== "west")) : byDir,
+        ]),
+      ),
+    };
+    expect(() => resolveClips(shibaDef, withoutWest)).toThrow(/walk.*falta la dirección "west"/);
+  });
+
   it("falla con un mensaje útil si la animación no existe en la hoja", () => {
     const broken: SpeciesDef = {
       ...shibaDef,

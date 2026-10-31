@@ -1,0 +1,32 @@
+{
+  "id": "dino",
+  "name": "Dino",
+  "sheetImage": "dino.png",
+  "sheetMeta": "dino.sheet.json",
+  "anchor": {
+    "x": 24,
+    "y": 39
+  },
+  "shadow": {
+    "rx": 8,
+    "ry": 2.5
+  },
+  "labelOffsetY": 30,
+  "clips": {
+    "idle": {
+      "source": "Idle",
+      "fps": 10,
+      "loop": true
+    },
+    "walk": {
+      "source": "Walk",
+      "fps": 10,
+      "loop": true
+    },
+    "run": {
+      "source": "Walk",
+      "fps": 16,
+      "loop": true
+    }
+  }
+}
