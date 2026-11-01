@@ -49,6 +49,23 @@
       "id": "2b",
       "name": "2B",
       "url": "/assets/species/2b/species.json"
+    },
+    {
+      "id": "poporing",
+      "name": "Poporing",
+      "url": "/assets/species/poporing/species.json"
+    },
+    {
+      "id": "reno-gorrazo",
+      "name": "Reno Gorrazo",
+      "url": "/assets/species/reno-gorrazo/species.json",
+      "scope": "event"
+    },
+    {
+      "id": "reno-navideno",
+      "name": "Reno Navideño",
+      "url": "/assets/species/reno-navideno/species.json",
+      "scope": "event"
     }
   ]
 }

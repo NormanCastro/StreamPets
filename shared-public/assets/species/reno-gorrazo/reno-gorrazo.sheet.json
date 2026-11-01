@@ -1,0 +1,82 @@
+{
+  "character": {
+    "id": "reno-gorrazo",
+    "name": "Reno Gorrazo",
+    "size": {
+      "width": 48,
+      "height": 48
+    },
+    "directions": 8,
+    "view": "low top-down"
+  },
+  "spritesheet": {
+    "path": "reno-gorrazo.png",
+    "cell_size": {
+      "width": 48,
+      "height": 48
+    },
+    "sheet_size": {
+      "width": 480,
+      "height": 288
+    },
+    "columns": 10,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 10,
+        "animation": "Idle",
+        "animation_group_id": "69da4de4-0496-4395-82cd-ef556f38dfa2",
+        "direction": "south"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 10,
+        "animation": "Idle",
+        "animation_group_id": "69da4de4-0496-4395-82cd-ef556f38dfa2",
+        "direction": "east"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 10,
+        "animation": "Idle",
+        "animation_group_id": "69da4de4-0496-4395-82cd-ef556f38dfa2",
+        "direction": "west"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "b9a66292-51b1-4c74-baf2-91954fa16f40",
+        "direction": "east"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "b9a66292-51b1-4c74-baf2-91954fa16f40",
+        "direction": "west"
+      }
+    ]
+  }
+}

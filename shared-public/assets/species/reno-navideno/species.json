@@ -1,0 +1,32 @@
+{
+  "id": "reno-navideno",
+  "name": "Reno Navide\u00f1o",
+  "sheetImage": "reno-navideno.png",
+  "sheetMeta": "reno-navideno.sheet.json",
+  "anchor": {
+    "x": 24,
+    "y": 39
+  },
+  "shadow": {
+    "rx": 9,
+    "ry": 2.5
+  },
+  "labelOffsetY": 33,
+  "clips": {
+    "idle": {
+      "source": "Idle",
+      "fps": 6,
+      "loop": true
+    },
+    "walk": {
+      "source": "Walk",
+      "fps": 10,
+      "loop": true
+    },
+    "run": {
+      "source": "Walk",
+      "fps": 16,
+      "loop": true
+    }
+  }
+}

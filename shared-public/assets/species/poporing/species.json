@@ -1,0 +1,32 @@
+{
+  "id": "poporing",
+  "name": "Poporing",
+  "sheetImage": "poporing.png",
+  "sheetMeta": "poporing.sheet.json",
+  "anchor": {
+    "x": 28,
+    "y": 46
+  },
+  "shadow": {
+    "rx": 12,
+    "ry": 3
+  },
+  "labelOffsetY": 42,
+  "clips": {
+    "idle": {
+      "source": "Idle",
+      "fps": 6,
+      "loop": true
+    },
+    "walk": {
+      "source": "Walk",
+      "fps": 14,
+      "loop": true
+    },
+    "run": {
+      "source": "Walk",
+      "fps": 22,
+      "loop": true
+    }
+  }
+}

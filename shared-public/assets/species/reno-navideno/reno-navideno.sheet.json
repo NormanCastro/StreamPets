@@ -1,0 +1,90 @@
+{
+  "character": {
+    "id": "reno-navideno",
+    "name": "Reno Navideño",
+    "size": {
+      "width": 48,
+      "height": 48
+    },
+    "directions": 8,
+    "view": "low top-down"
+  },
+  "spritesheet": {
+    "path": "reno-navideno.png",
+    "cell_size": {
+      "width": 48,
+      "height": 48
+    },
+    "sheet_size": {
+      "width": 432,
+      "height": 336
+    },
+    "columns": 9,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "13b399fe-34f0-45ea-8a8b-f1a16e98af95",
+        "direction": "south"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "13b399fe-34f0-45ea-8a8b-f1a16e98af95",
+        "direction": "east"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "13b399fe-34f0-45ea-8a8b-f1a16e98af95",
+        "direction": "west"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 9,
+        "animation": "Walk",
+        "animation_group_id": "b380b626-7b0d-40e6-a92f-8a3377649168",
+        "direction": "south"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 9,
+        "animation": "Walk",
+        "animation_group_id": "b380b626-7b0d-40e6-a92f-8a3377649168",
+        "direction": "east"
+      },
+      {
+        "row": 6,
+        "type": "animation",
+        "frame_count": 9,
+        "animation": "Walk",
+        "animation_group_id": "b380b626-7b0d-40e6-a92f-8a3377649168",
+        "direction": "west"
+      }
+    ]
+  }
+}

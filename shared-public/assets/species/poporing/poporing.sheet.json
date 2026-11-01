@@ -1,0 +1,82 @@
+{
+  "character": {
+    "id": "poporing",
+    "name": "Poporing",
+    "size": {
+      "width": 56,
+      "height": 56
+    },
+    "directions": 8,
+    "view": "low top-down"
+  },
+  "spritesheet": {
+    "path": "poporing.png",
+    "cell_size": {
+      "width": 56,
+      "height": 56
+    },
+    "sheet_size": {
+      "width": 896,
+      "height": 336
+    },
+    "columns": 16,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 16,
+        "animation": "Walk",
+        "animation_group_id": "80ba0720-26fb-4cd8-82a2-6c5a485ffb05",
+        "direction": "east"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 16,
+        "animation": "Walk",
+        "animation_group_id": "80ba0720-26fb-4cd8-82a2-6c5a485ffb05",
+        "direction": "west"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "c2d07aad-e444-4ce8-af0e-40a07bf9ba21",
+        "direction": "south"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "c2d07aad-e444-4ce8-af0e-40a07bf9ba21",
+        "direction": "east"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "c2d07aad-e444-4ce8-af0e-40a07bf9ba21",
+        "direction": "west"
+      }
+    ]
+  }
+}
