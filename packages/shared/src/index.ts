@@ -7,8 +7,11 @@ import { z } from "zod";
 /** Id de especie: minúsculas, números, guion y guion bajo. */
 export const SpeciesIdSchema = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,39}$/, "id de especie inválido");
 
-/** general = la puede usar cualquier canal; exclusive = solo los canales que el administrador elija. */
-export const SpeciesScopeSchema = z.enum(["general", "exclusive"]);
+/**
+ * general = la puede usar cualquier canal; exclusive = solo los canales que el administrador elija;
+ * event = pet de temporada (navideña…): la pueden usar todos los canales mientras el administrador la tenga encendida.
+ */
+export const SpeciesScopeSchema = z.enum(["general", "exclusive", "event"]);
 export type SpeciesScope = z.infer<typeof SpeciesScopeSchema>;
 /** free = incluida en el plan gratis; premium = solo canales con plan premium. */
 export const SpeciesTierSchema = z.enum(["free", "premium"]);
@@ -85,8 +88,10 @@ export const CUSTOM_PET = {
   /** Tamaño máximo del PNG en bytes. */
   maxBytes: 120_000,
   nameMax: 30,
-  /** Cuántas pets (pendientes o aprobadas) puede tener un canal según su plan. */
-  quota: { free: 0, premium: 3 } as const,
+  /** Cupos de pets propias (pendientes o aprobadas) de un canal nuevo; el administrador puede cambiarlos canal por canal. */
+  defaultSlots: 3,
+  /** Tope que se puede asignar a un canal. */
+  maxSlots: 50,
 } as const;
 
 export const CustomPetStatusSchema = z.enum(["pending", "approved", "rejected"]);

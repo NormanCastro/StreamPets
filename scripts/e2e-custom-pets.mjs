@@ -68,18 +68,22 @@ async function enter(ctx, key) {
   return p;
 }
 
-// 1) un canal gratis ve que es premium y no puede subir
+// 1) un canal con plan básico también puede subir (3 cupos)
 const freeCtx = await browser.newContext({ viewport: { width: 1100, height: 800 } });
 const free = await enter(freeCtx, KEY2);
 await free.getByRole("tab", { name: "Mis pets" }).click();
-await free.getByText("Las mascotas propias son parte del plan premium.").waitFor();
-console.log("OK plan gratis: no puede subir");
+await free.getByText("Cupos usados:").waitFor();
+await free.getByRole("button", { name: /Hoja única/ }).click();
+await free.getByLabel(/Hoja de sprites/).waitFor();
+if ((await free.getByText("Tu plan no incluye mascotas propias.").count()) !== 0) await fail("el plan básico no debería quedar sin cupos");
+console.log("OK plan básico: puede subir sus 3 pets");
 
 // 2) streamer premium sube una pet
 const ctx = await browser.newContext({ viewport: { width: 1100, height: 900 } });
 const amiga = await enter(ctx, KEY);
 await amiga.getByRole("tab", { name: "Mis pets" }).click();
 await amiga.getByText("Cómo preparar tu mascota").waitFor();
+await amiga.getByRole("button", { name: /Hoja única/ }).click();
 await amiga.getByLabel(/Hoja de sprites/).setInputFiles({ name: "mala.png", mimeType: "image/png", buffer: sheet(100, 100) });
 await amiga.getByText(/Mide 100×100/).waitFor();
 console.log("OK medidas malas rechazadas antes de subir");
@@ -147,10 +151,23 @@ await amiga.getByRole("tab", { name: "Mis pets" }).click();
 await amiga.getByText("Motivo: no cumple").waitFor();
 console.log("OK rechazar: reubica al espectador y muestra el motivo");
 
+// 6b) el administrador le sube los cupos de pets propias a un canal desde «Canales»
+await adm.getByRole("tab", { name: "Canales" }).click();
+await adm.getByLabel("Cupos de pets propias de amiga").fill("5");
+await adm.getByLabel("Cupos de pets propias de amiga").press("Enter");
+await until(async () => (await adminApi("GET", "/api/admin/channels")).items.find((c) => c.login === "amiga").customSlots === 5, "cupos de amiga = 5");
+await adm.getByLabel("Cupos de pets propias de otra").waitFor();
+if ((await adminApi("GET", "/api/admin/channels")).items.find((c) => c.login === "otra").customSlots !== 3) await fail("los cupos de otro canal cambiaron");
+await amiga.getByRole("tab", { name: "Mis pets" }).click();
+await amiga.reload();
+await amiga.getByRole("tab", { name: "Mis pets" }).click();
+await amiga.getByText(/Cupos usados:/).filter({ hasText: "de 5" }).waitFor();
+console.log("OK cupos por canal: el admin los cambia y la streamer los ve");
+
 // 7) catálogo del administrador: todas las especies por categoría y apagar una en caso de emergencia
 adm.on("dialog", (d) => d.accept());
 await adm.getByRole("tab", { name: "Catálogo" }).click();
-for (const t of ["Gratis", "Premium", "Exclusivas"]) await adm.getByRole("heading", { name: new RegExp(`^${t}`) }).waitFor();
+for (const t of ["Generales", "De evento", "Exclusivas"]) await adm.getByRole("heading", { name: new RegExp(`^${t}`) }).waitFor();
 const speciesList = (await adminApi("GET", "/api/admin/catalog")).items;
 const total = speciesList.length;
 await until(async () => (await adm.locator("tbody tr:not(:has(.empty))").count()) === total, `el catálogo muestra las ${total} especies`);
@@ -164,6 +181,14 @@ await until(async () => (await KEYAPI("GET", "/api/admin/viewers")).items[0].pet
 await adm.getByText("Desactivada").first().waitFor();
 await adm.getByRole("switch", { name: `Activar ${lunaSpecies.name}` }).click();
 await adm.getByRole("switch", { name: `Desactivar ${lunaSpecies.name}` }).waitFor();
+// cambiar el tipo con el selector mueve la especie de sección
+const other = speciesList.find((x) => x.id !== lunaId && x.category === "general" && !x.custom);
+await adm.getByLabel(`Tipo de ${other.name}`).selectOption("event");
+await until(async () => (await adminApi("GET", "/api/admin/catalog")).items.find((x) => x.id === other.id).category === "event", "pasa a evento");
+await adm.getByRole("heading", { name: /^De evento/ }).locator("..").locator("..").getByText(other.name, { exact: true }).waitFor();
+await adm.getByLabel(`Tipo de ${other.name}`).selectOption("general");
+await until(async () => (await adminApi("GET", "/api/admin/catalog")).items.find((x) => x.id === other.id).category === "general", "vuelve a general");
+console.log("OK el selector cambia una especie entre general y de evento");
 console.log("OK catálogo: lista todas, apaga una y reubica a quien la tenía, y se puede volver a encender");
 
 if (errors.length) await fail("errores en el navegador: " + errors.join(" | "));

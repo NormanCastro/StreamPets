@@ -202,7 +202,7 @@ describe("administrar plan y especies de un canal", () => {
     expect((await lockedOf(asFriend())).zorro).toBe(false);
     await repo.addAllowedChannel(handle.db, "otro");
     await inject("PATCH", "/api/admin/channels/otro", adm, { plan: "premium" }); // premium no abre una exclusiva
-    expect(await repo.getAccessForStreamer(handle.db, friendId)).toEqual({ plan: "free", grants: ["zorro"] });
+    expect(await repo.getAccessForStreamer(handle.db, friendId)).toMatchObject({ plan: "free", grants: ["zorro"] });
   });
 
   it("validaciones: especie inexistente, no exclusiva, cuerpo vacío, plan raro, dueño, canal inexistente", async () => {
@@ -218,7 +218,7 @@ describe("administrar plan y especies de un canal", () => {
   it("un streamer con su sesión NO puede cambiarse el plan ni darse especies (403)", async () => {
     const r = await inject("PATCH", "/api/admin/channels/amiga", asFriend(csrf), { plan: "premium", species: ["zorro"] });
     expect(r.statusCode).toBe(403);
-    expect(await repo.getAccessForStreamer(handle.db, friendId)).toEqual({ plan: "free", grants: [] });
+    expect(await repo.getAccessForStreamer(handle.db, friendId)).toMatchObject({ plan: "free", grants: [] });
   });
 
   it("el plan y las especies se pueden dejar listos antes del primer ingreso", async () => {
@@ -235,7 +235,7 @@ describe("administrar plan y especies de un canal", () => {
   it("quitar el canal borra sus permisos y deja al streamer como gratis", async () => {
     await inject("PATCH", "/api/admin/channels/amiga", adm, { plan: "premium", species: ["zorro"] });
     expect((await inject("DELETE", "/api/admin/channels/amiga", adm)).statusCode).toBe(204);
-    expect(await repo.getAccessForStreamer(handle.db, friendId)).toEqual({ plan: "free", grants: [] });
+    expect(await repo.getAccessForStreamer(handle.db, friendId)).toMatchObject({ plan: "free", grants: [] });
     expect((await repo.listChannelGrants(handle.db)).size).toBe(0);
   });
 });

@@ -4,9 +4,9 @@ import type { CatalogItem } from "../api";
 import { SpeciesThumb } from "./SpeciesThumb";
 
 const GROUPS: Array<{ id: CatalogItem["category"]; title: string; hint: string }> = [
-  { id: "free", title: "Gratis", hint: "Las puede usar cualquier canal." },
-  { id: "premium", title: "Premium", hint: "Solo canales con plan premium." },
-  { id: "exclusive", title: "Exclusivas", hint: "Solo los canales a los que se las des (o el canal que subió su propia pet)." },
+  { id: "general", title: "Generales", hint: "Las puede usar cualquier canal." },
+  { id: "event", title: "De evento", hint: "Para temporadas (navideña…): las usan todos los canales mientras estén activas. Enciéndelas al empezar el evento y apágalas al terminar." },
+  { id: "exclusive", title: "Exclusivas", hint: "Solo los canales a los que se las des en «Canales» (o el canal que subió su propia pet)." },
 ];
 
 export function CatalogPanel() {
@@ -48,10 +48,31 @@ export function CatalogPanel() {
     }
   }
 
+  async function setCategory(it: CatalogItem, category: CatalogItem["category"]) {
+    if (category === it.category) return;
+    const label = { general: "general", event: "de evento", exclusive: "exclusiva" }[category];
+    if (
+      it.channels > 0 &&
+      category === "exclusive" &&
+      !window.confirm(`¿Pasar "${it.name}" a ${label}? Los canales que ya no puedan usarla pasarán a otra especie ahora mismo.`)
+    ) {
+      return;
+    }
+    setBusy(it.id);
+    try {
+      await api.setSpeciesCategory(it.id, category);
+      await load();
+    } catch (err) {
+      setError(describeError(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <section>
       <p className="muted">
-        Todas las mascotas, de la más usada a la menos usada (por cantidad de canales). Si algo sale mal, desactiva la especie: deja de estar disponible para todos y quienes la
+        Todas las mascotas, de la más usada a la menos usada (por cantidad de canales). Con el selector decides si cada una es general, de evento o exclusiva (las exclusivas se dan canal por canal en «Canales»). Si algo sale mal, desactiva la especie: deja de estar disponible para todos y quienes la
         tenían pasan a otra al instante.
       </p>
       {error && <p className="error" role="alert">{error}</p>}
@@ -71,6 +92,7 @@ export function CatalogPanel() {
                     <th>Mascota</th>
                     <th>En canales</th>
                     <th>Mascotas</th>
+                    <th>Tipo</th>
                     <th>Estado</th>
                   </tr>
                 </thead>
@@ -84,7 +106,6 @@ export function CatalogPanel() {
                             <strong>{i.name}</strong>
                             <div className="muted small">
                               {i.custom ? `Propia de @${i.ownerLogin ?? "?"}` : i.id}
-                              {i.premium && i.category === "exclusive" ? " · premium" : ""}
                             </div>
                           </div>
                         </div>
@@ -93,6 +114,22 @@ export function CatalogPanel() {
                         <strong>{i.channels}</strong>
                       </td>
                       <td className="muted">{i.pets}</td>
+                      <td>
+                        {i.custom ? (
+                          <span className="muted small">Propia</span>
+                        ) : (
+                          <select
+                            value={i.category}
+                            disabled={busy === i.id}
+                            aria-label={`Tipo de ${i.name}`}
+                            onChange={(e) => void setCategory(i, e.target.value as CatalogItem["category"])}
+                          >
+                            <option value="general">General</option>
+                            <option value="event">Pet de evento</option>
+                            <option value="exclusive">Exclusiva</option>
+                          </select>
+                        )}
+                      </td>
                       <td>
                         <div className="switchrow">
                           <label className="switch">
@@ -113,7 +150,7 @@ export function CatalogPanel() {
                   ))}
                   {list.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="empty">
+                      <td colSpan={5} className="empty">
                         No hay mascotas en esta categoría.
                       </td>
                     </tr>

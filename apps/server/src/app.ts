@@ -11,7 +11,7 @@ import { ChatService } from "./domain/chat-service.js";
 import { mathRng, systemClock } from "./domain/rng.js";
 import type { Clock, Rng } from "./domain/rng.js";
 import { SpeciesAccess } from "./domain/access.js";
-import { reloadCustomSpecies, reloadDisabledSpecies } from "./domain/custom-pets.js";
+import { reloadCustomSpecies, reloadDisabledSpecies, reloadSpeciesOverrides } from "./domain/custom-pets.js";
 import type { SpeciesCatalog } from "./domain/species.js";
 import type { TwitchOAuth } from "./auth/twitch-oauth.js";
 import { registerAdminRoutes } from "./http/admin.js";
@@ -118,6 +118,7 @@ export async function buildApp(opts: AppOptions): Promise<BuiltApp> {
   // Pets personalizadas aprobadas (viven en la base de datos).
   await reloadCustomSpecies(opts.db, opts.species);
   await reloadDisabledSpecies(opts.db, opts.species);
+  await reloadSpeciesOverrides(opts.db, opts.species);
 
   // ── Servicio de chat y hub de overlays ──
   const access = new SpeciesAccess(opts.db, opts.species, opts.streamerId);

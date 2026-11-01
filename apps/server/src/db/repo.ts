@@ -8,6 +8,7 @@ import {
   sessions,
   speciesAccess,
   speciesDisabled,
+  speciesOverrides,
   streamerSettings,
   streamers,
   viewers,
@@ -474,10 +475,10 @@ export function asPlan(v: string): ChannelPlan {
 export async function getAccessForStreamer(
   db: Db,
   streamerId: string,
-): Promise<{ plan: ChannelPlan; grants: string[] }> {
+): Promise<{ plan: ChannelPlan; grants: string[]; customSlots: number }> {
   const row = (
     await db
-      .select({ id: allowedChannels.id, plan: allowedChannels.plan })
+      .select({ id: allowedChannels.id, plan: allowedChannels.plan, customSlots: allowedChannels.customSlots })
       .from(streamers)
       .innerJoin(
         allowedChannels,
@@ -488,9 +489,9 @@ export async function getAccessForStreamer(
       )
       .where(eq(streamers.id, streamerId))
   )[0];
-  if (!row) return { plan: "free", grants: [] };
+  if (!row) return { plan: "free", grants: [], customSlots: 0 };
   const grants = await db.select({ speciesId: speciesAccess.speciesId }).from(speciesAccess).where(eq(speciesAccess.allowedChannelId, row.id));
-  return { plan: asPlan(row.plan), grants: grants.map((g) => g.speciesId) };
+  return { plan: asPlan(row.plan), grants: grants.map((g) => g.speciesId), customSlots: row.customSlots };
 }
 
 /** Especies exclusivas por canal, indexadas por id de la fila de canal autorizado. */
@@ -503,6 +504,11 @@ export async function listChannelGrants(db: Db): Promise<Map<string, string[]>> 
 
 export async function setChannelPlan(db: Db, login: string, plan: ChannelPlan): Promise<AllowedChannelRow | undefined> {
   return (await db.update(allowedChannels).set({ plan }).where(eq(allowedChannels.login, login)).returning())[0];
+}
+
+/** Cupos de mascotas propias del canal. */
+export async function setChannelCustomSlots(db: Db, login: string, customSlots: number): Promise<AllowedChannelRow | undefined> {
+  return (await db.update(allowedChannels).set({ customSlots }).where(eq(allowedChannels.login, login)).returning())[0];
 }
 
 /** Reemplaza la lista de especies exclusivas del canal. */
@@ -582,13 +588,14 @@ const customMetaCols = {
   name: customSpecies.name,
   status: customSpecies.status,
   rejectReason: customSpecies.rejectReason,
+  pack: customSpecies.pack,
   createdAt: customSpecies.createdAt,
   reviewedAt: customSpecies.reviewedAt,
 };
 
 export async function insertCustomPet(
   db: Db,
-  input: { id: string; streamerId: string; name: string; png: Buffer },
+  input: { id: string; streamerId: string; name: string; png: Buffer; pack?: string | null },
 ): Promise<void> {
   await db.insert(customSpecies).values(input);
 }
@@ -688,4 +695,31 @@ export async function listSpeciesUsage(db: Db): Promise<Map<string, { channels: 
 export async function listStreamersUsingSpecies(db: Db, speciesId: string): Promise<string[]> {
   const rows = await db.selectDistinct({ id: pets.streamerId }).from(pets).where(eq(pets.speciesId, speciesId));
   return rows.map((r) => r.id);
+}
+
+export async function listSpeciesOverrides(
+  db: Db,
+): Promise<Array<{ id: string; scope: "general" | "exclusive" | "event"; tier: "free" | "premium" }>> {
+  const rows = await db.select().from(speciesOverrides);
+  return rows.map((r) => ({
+    id: r.speciesId,
+    scope: r.scope === "exclusive" ? "exclusive" : r.scope === "event" ? "event" : "general",
+    tier: r.tier === "premium" ? "premium" : "free",
+  }));
+}
+
+/** Guarda el tipo elegido por el administrador; con null vuelve a valer lo de index.json. */
+export async function setSpeciesOverride(
+  db: Db,
+  speciesId: string,
+  value: { scope: "general" | "exclusive" | "event"; tier: "free" | "premium" } | null,
+): Promise<void> {
+  if (value === null) {
+    await db.delete(speciesOverrides).where(eq(speciesOverrides.speciesId, speciesId));
+    return;
+  }
+  await db
+    .insert(speciesOverrides)
+    .values({ speciesId, ...value })
+    .onConflictDoUpdate({ target: speciesOverrides.speciesId, set: { ...value, updatedAt: new Date() } });
 }

@@ -2,8 +2,11 @@ import type { Direction, FrameRect, ParsedSheet } from "./pixellab.js";
 import { parsePixelLabSheet } from "./pixellab.js";
 
 /** Nombres de clips que entiende el motor. Cada especie los mapea a animaciones de su hoja. */
-export type ClipName = "idle" | "walk" | "run";
+export type ClipName = "idle" | "walk" | "run" | "attack";
+/** Clips obligatorios: toda especie debe traerlos. */
 export const CLIP_NAMES: readonly ClipName[] = ["idle", "walk", "run"];
+/** Clips opcionales (p. ej. el ataque para un futuro PvP): si faltan, la especie simplemente no los tiene. */
+export const OPTIONAL_CLIP_NAMES: readonly ClipName[] = ["attack"];
 
 /** Vistas que el motor usa: de lado (east/west) o de frente (south). */
 export type View = "east" | "west" | "south";
@@ -17,6 +20,7 @@ export const REQUIRED_VIEWS: Readonly<Record<ClipName, readonly View[]>> = {
   idle: ["east", "west", "south"],
   walk: ["east", "west"],
   run: ["east", "west"],
+  attack: ["east", "west"],
 };
 
 export interface ClipDef {
@@ -40,7 +44,8 @@ export interface SpeciesDef {
   readonly labelOffsetY: number;
   /** Fila (en la celda) donde se parte el sprite para el efecto de respiración. Opcional. */
   readonly breathSplitY?: number;
-  readonly clips: Readonly<Record<ClipName, ClipDef>>;
+  /** idle, walk y run son obligatorios; attack es opcional. */
+  readonly clips: Readonly<Partial<Record<ClipName, ClipDef>> & Record<"idle" | "walk" | "run", ClipDef>>;
 }
 
 export interface ResolvedClip {
@@ -72,8 +77,9 @@ export function resolveClips(
   sheet: ParsedSheet,
 ): ReadonlyMap<ClipName, ReadonlyMap<View, ResolvedClip>> {
   const out = new Map<ClipName, Map<View, ResolvedClip>>();
-  for (const clip of CLIP_NAMES) {
+  for (const clip of [...CLIP_NAMES, ...OPTIONAL_CLIP_NAMES]) {
     const clipDef = def.clips[clip];
+    if (!clipDef && OPTIONAL_CLIP_NAMES.includes(clip)) continue;
     if (!clipDef) throw new SpeciesError(`"${def.id}" no define el clip "${clip}"`);
     if (!(clipDef.fps > 0)) throw new SpeciesError(`"${def.id}".${clip}: fps debe ser > 0`);
     const byDir = sheet.animations.get(clipDef.source);

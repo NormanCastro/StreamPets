@@ -45,6 +45,8 @@ export const allowedChannels = pgTable("allowed_channels", {
   /** Clave personal de respaldo para entrar sin Twitch. Solo se guarda su hash; el prefijo sirve para reconocerla. */
   keyHash: text("key_hash").unique(),
   keyPrefix: text("key_prefix"),
+  /** Cuántas mascotas propias puede tener el canal (pendientes o aprobadas). */
+  customSlots: integer("custom_slots").notNull().default(3),
   keyCreatedAt: timestamp("key_created_at", { withTimezone: true }),
   createdAt: createdAt(),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
@@ -99,6 +101,8 @@ export const customSpecies = pgTable(
     status: text("status").notNull().default("pending"),
     rejectReason: text("reject_reason"),
     png: bytea("png").notNull(),
+    /** JSON con las medidas de la hoja cuando la pet viene de un paquete .zip; null = plantilla fija de 520x280. */
+    pack: text("pack"),
     createdAt: createdAt(),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   },
@@ -110,6 +114,14 @@ export type CustomSpeciesRow = typeof customSpecies.$inferSelect;
 export const speciesDisabled = pgTable("species_disabled", {
   speciesId: text("species_id").primaryKey(),
   disabledAt: timestamp("disabled_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Cambios del administrador al tipo de una especie del catálogo (sin fila = vale lo que dice index.json). */
+export const speciesOverrides = pgTable("species_overrides", {
+  speciesId: text("species_id").primaryKey(),
+  scope: text("scope").notNull(),
+  tier: text("tier").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const streamerSettings = pgTable("streamer_settings", {

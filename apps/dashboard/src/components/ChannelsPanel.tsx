@@ -102,11 +102,23 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
     if (
       plan === "free" &&
       !window.confirm(
-        `¿Pasar a @${c.login} al plan gratis? Las mascotas de sus espectadores que usen especies premium pasarán a otra especie disponible.`,
+        `¿Pasar a @${c.login} al plan básico? Las mascotas de sus espectadores que usen especies que el plan básico no incluya pasarán a otra especie disponible.`,
       )
     )
       return;
     void run(async () => void (await api.patchChannel(c.login, { plan })));
+  };
+
+  /** Cupos de pets propias: se guarda al salir del campo o con Enter, solo si cambió y es un número válido. */
+  const setSlots = (c: ChannelItem, raw: string) => {
+    const n = Number(raw);
+    if (raw.trim() === "" || !Number.isInteger(n) || n < 0 || n > 50) {
+      setError("Los cupos deben ser un número entero entre 0 y 50.");
+      void load();
+      return;
+    }
+    if (n === c.customSlots) return;
+    void run(async () => void (await api.patchChannel(c.login, { customSlots: n })));
   };
 
   const toggleSpecies = (c: ChannelItem, id: string, on: boolean) => {
@@ -123,8 +135,8 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
     <section>
       <p className="muted">
         Solo los canales de esta lista pueden entrar con Twitch. Escribe el usuario de Twitch de quien quieras invitar; cada persona
-        administra sus propias mascotas y su propio enlace de OBS. El plan decide si puede usar las especies <em>premium</em>, y las
-        especies <em>exclusivas</em> se le dan canal por canal.
+        administra sus propias mascotas y su propio enlace de OBS. Las especies <em>exclusivas</em> se le dan
+        canal por canal.
       </p>
       {error && <p className="error" role="alert">{error}</p>}
 
@@ -166,6 +178,7 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
               <th>Estado</th>
               <th>Plan</th>
               <th>Especies exclusivas</th>
+              <th>Pets propias</th>
               <th>Clave de respaldo</th>
               <th>Último ingreso</th>
               <th />
@@ -190,7 +203,7 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
                         disabled={busy}
                         onChange={(e) => setPlan(c, e.target.value as Plan)}
                       >
-                        <option value="free">Gratis</option>
+                        <option value="free">Básico</option>
                         <option value="premium">Premium</option>
                       </select>
                     )}
@@ -205,6 +218,21 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
                         Especies ({c.species.length}/{exclusive.length})
                       </button>
                     )}
+                  </td>
+                  <td>
+                    <input
+                      key={`${c.login}-${c.customSlots}`}
+                      className="slots"
+                      type="number"
+                      min={0}
+                      max={50}
+                      step={1}
+                      defaultValue={c.customSlots}
+                      disabled={busy}
+                      aria-label={`Cupos de pets propias de ${c.login}`}
+                      onBlur={(e) => setSlots(c, e.currentTarget.value)}
+                      onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                    />
                   </td>
                   <td>
                     {c.owner ? (
@@ -234,7 +262,7 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
                 </tr>
                 {open === c.login && !c.owner && (
                   <tr className="subrow">
-                    <td colSpan={7}>
+                    <td colSpan={8}>
                       <div className="grants">
                         {exclusive.map((s) => (
                           <label key={s.id} className="check">
@@ -259,7 +287,7 @@ export function ChannelsPanel({ species }: { species: Species[] }) {
             ))}
             {loaded && items.length === 0 && (
               <tr>
-                <td colSpan={7} className="empty">Aún no hay canales autorizados.</td>
+                <td colSpan={8} className="empty">Aún no hay canales autorizados.</td>
               </tr>
             )}
           </tbody>

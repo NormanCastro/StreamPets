@@ -81,11 +81,11 @@ describe("catálogo para el administrador", () => {
     const items = await catalog();
     expect(items.map((i) => i.id).sort()).toEqual([...IDS].sort());
     const by = (id: string) => items.find((i) => i.id === id)!;
-    expect(by("shiba")).toMatchObject({ category: "free", channels: 2, pets: 3, disabled: false, custom: false });
+    expect(by("shiba")).toMatchObject({ category: "general", channels: 2, pets: 3, disabled: false, custom: false });
     expect(by("gato")).toMatchObject({ channels: 1, pets: 1 });
-    expect(by("dragon")).toMatchObject({ category: "premium", premium: true, channels: 0, pets: 0 });
+    expect(by("dragon")).toMatchObject({ category: "general", channels: 0, pets: 0 });
     expect(by("zorro")).toMatchObject({ category: "exclusive" });
-    expect(by("honguito")).toMatchObject({ category: "free", channels: 0 });
+    expect(by("honguito")).toMatchObject({ category: "general", channels: 0 });
   });
 
   it("va ordenado de la más usada a la menos usada", async () => {
@@ -118,7 +118,7 @@ describe("apagar y encender una especie", () => {
     const amiga = await streamerOf("amiga");
     const ids = [await addPet(amiga, "v1", "shiba"), await addPet(amiga, "v2", "shiba")];
     const r = await inject("PATCH", "/api/admin/catalog/shiba", adm, { disabled: true });
-    expect([r.statusCode, r.json()]).toEqual([200, { id: "shiba", disabled: true }]);
+    expect([r.statusCode, r.json()]).toEqual([200, { id: "shiba", disabled: true, category: "general" }]);
     for (const id of ids) expect((await repo.getViewerWithPet(handle.db, amiga, id))?.pet?.speciesId).not.toBe("shiba");
     expect((await catalog()).find((i) => i.id === "shiba")).toMatchObject({ disabled: true, channels: 0 });
 
@@ -162,5 +162,82 @@ describe("apagar y encender una especie", () => {
     expect((await inject("PATCH", "/api/admin/catalog/shiba", adm, { disabled: "si" })).statusCode).toBe(400);
     expect((await inject("PATCH", "/api/admin/catalog/shiba", adm, { disabled: true, extra: 1 })).statusCode).toBe(400);
     expect((await inject("PATCH", "/api/admin/catalog/shiba", adm, {})).statusCode).toBe(400);
+  });
+});
+
+describe("cambiar el tipo: general, evento o exclusiva", () => {
+  it("pasar a evento: sigue disponible para todos los canales y se apaga con el interruptor", async () => {
+    const otraH = await login("otra");
+    const amigaH = await login("amiga");
+    const otra = await streamerOf("otra");
+    const vOtra = await addPet(otra, "v1", "gato");
+
+    const r = await inject("PATCH", "/api/admin/catalog/gato", adm, { category: "event" });
+    expect([r.statusCode, r.json().category]).toEqual([200, "event"]);
+    expect((await catalog()).find((i) => i.id === "gato")).toMatchObject({ category: "event" });
+    // nadie la pierde: un canal básico y uno premium la siguen pudiendo usar
+    expect((await repo.getViewerWithPet(handle.db, otra, vOtra))?.pet?.speciesId).toBe("gato");
+    expect((await inject("PATCH", "/api/admin/settings", otraH, { defaultSpeciesId: "gato" })).statusCode).toBe(200);
+    expect((await inject("PATCH", "/api/admin/settings", amigaH, { defaultSpeciesId: "gato" })).statusCode).toBe(200);
+    const sp = (await inject("GET", "/api/admin/species", otraH)).json().species as Array<{ id: string; scope: string; locked: boolean }>;
+    expect(sp.find((x) => x.id === "gato")).toMatchObject({ scope: "event", locked: false });
+
+    // fuera de temporada se apaga: quien la tenía pasa a otra
+    await inject("PATCH", "/api/admin/catalog/gato", adm, { disabled: true });
+    expect((await repo.getViewerWithPet(handle.db, otra, vOtra))?.pet?.speciesId).not.toBe("gato");
+    expect((await inject("PATCH", "/api/admin/settings", otraH, { defaultSpeciesId: "gato" })).json().error).toBe("species_locked");
+    await inject("PATCH", "/api/admin/catalog/gato", adm, { disabled: false });
+    expect((await inject("PATCH", "/api/admin/settings", otraH, { defaultSpeciesId: "gato" })).statusCode).toBe(200);
+  });
+
+  it("pasar a exclusiva: nadie sin permiso la usa, y con permiso del canal sí", async () => {
+    const amigaH = await login("amiga");
+    const amiga = await streamerOf("amiga");
+    const v = await addPet(amiga, "v1", "honguito");
+    await inject("PATCH", "/api/admin/catalog/honguito", adm, { category: "exclusive" });
+    expect((await catalog()).find((i) => i.id === "honguito")).toMatchObject({ category: "exclusive" });
+    expect((await repo.getViewerWithPet(handle.db, amiga, v))?.pet?.speciesId).not.toBe("honguito");
+    expect((await inject("PATCH", "/api/admin/settings", amigaH, { defaultSpeciesId: "honguito" })).statusCode).toBe(403);
+    expect((await inject("PATCH", "/api/admin/channels/amiga", adm, { species: ["honguito"] })).statusCode).toBe(200);
+    expect((await inject("PATCH", "/api/admin/settings", amigaH, { defaultSpeciesId: "honguito" })).statusCode).toBe(200);
+  });
+
+  it("se guarda, sobrevive al reinicio, y volver al valor original borra el cambio", async () => {
+    await inject("PATCH", "/api/admin/catalog/shiba", adm, { category: "event" });
+    expect(await repo.listSpeciesOverrides(handle.db)).toEqual([{ id: "shiba", scope: "event", tier: "free" }]);
+    const c2 = mk();
+    const again = await boot(c2);
+    await again.app.ready();
+    expect(c2.list().find((e) => e.id === "shiba")).toMatchObject({ scope: "event" });
+    await again.app.close();
+    await inject("PATCH", "/api/admin/catalog/shiba", adm, { category: "general" });
+    expect(await repo.listSpeciesOverrides(handle.db)).toEqual([]);
+    expect((await catalog()).find((i) => i.id === "shiba")).toMatchObject({ category: "general" });
+  });
+
+  it("elegir una categoría limpia el nivel premium antiguo", async () => {
+    // el dragón viene premium de index.json: un canal básico no podría usarlo
+    const otraH = await login("otra");
+    expect((await inject("PATCH", "/api/admin/settings", otraH, { defaultSpeciesId: "dragon" })).statusCode).toBe(403);
+    await inject("PATCH", "/api/admin/catalog/dragon", adm, { category: "general" });
+    expect(await repo.listSpeciesOverrides(handle.db)).toEqual([{ id: "dragon", scope: "general", tier: "free" }]);
+    expect((await inject("PATCH", "/api/admin/settings", otraH, { defaultSpeciesId: "dragon" })).statusCode).toBe(200);
+  });
+
+  it("valida: solo administrador, categoría válida, y las pets propias no cambian de tipo", async () => {
+    const amigaH = await login("amiga");
+    expect((await inject("PATCH", "/api/admin/catalog/gato", amigaH, { category: "event" })).statusCode).toBe(403);
+    expect((await inject("PATCH", "/api/admin/catalog/gato", adm, { category: "vip" })).statusCode).toBe(400);
+    expect((await inject("PATCH", "/api/admin/catalog/gato", adm, { category: "premium" })).statusCode).toBe(400);
+    const id = "u-0b0b0b0b";
+    await repo.insertCustomPet(handle.db, { id, streamerId: await streamerOf("amiga"), name: "Pollito", png: Buffer.from("x") });
+    await inject("POST", `/api/admin/moderation/pets/${id}/approve`, adm);
+    const r = await inject("PATCH", `/api/admin/catalog/${id}`, adm, { category: "general" });
+    expect([r.statusCode, r.json().error]).toEqual([400, "custom_species"]);
+  });
+
+  it("se puede cambiar el tipo y apagar a la vez", async () => {
+    const r = await inject("PATCH", "/api/admin/catalog/gato", adm, { category: "event", disabled: true });
+    expect(r.json()).toEqual({ id: "gato", disabled: true, category: "event" });
   });
 });

@@ -95,6 +95,14 @@ export class PetEngine {
     return this.byId.get(id);
   }
 
+  /**
+   * Hace atacar a una mascota (gancho para el futuro PvP). `towards` la gira hacia ese lado.
+   * Devuelve false si no existe, su especie no tiene animación de ataque o está ocupada.
+   */
+  attack(id: string, towards?: "east" | "west"): boolean {
+    return this.byId.get(id)?.playAttack(towards) ?? false;
+  }
+
   addPet(init: AddPetInit): Pet {
     if (this.byId.has(init.id)) throw new Error(`Ya existe una mascota con id "${init.id}"`);
     while (this.list.length >= this.maxPets) {

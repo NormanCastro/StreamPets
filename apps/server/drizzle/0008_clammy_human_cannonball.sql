@@ -1,0 +1,1 @@
+ALTER TABLE "allowed_channels" ADD COLUMN "custom_slots" integer DEFAULT 3 NOT NULL;

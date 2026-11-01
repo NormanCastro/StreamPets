@@ -1,7 +1,7 @@
 import type { ClipName } from "../assets/species.js";
 
 /** Todos los estados previstos. PLAY e INTERACT quedan declarados pero sin implementar (ver `implemented`). */
-export type PetState = "IDLE" | "WALK" | "RUN" | "SLEEP" | "JUMP" | "SIT" | "PLAY" | "INTERACT";
+export type PetState = "IDLE" | "WALK" | "RUN" | "SLEEP" | "JUMP" | "SIT" | "PLAY" | "INTERACT" | "ATTACK";
 
 export type Facing = "east" | "west";
 
@@ -23,6 +23,8 @@ export const STATE_DEFS: Readonly<Record<PetState, StateDef>> = {
   WALK: { priority: 2, interruptible: true, clip: "walk", view: "side", implemented: true },
   RUN: { priority: 2, interruptible: true, clip: "run", view: "side", implemented: true },
   JUMP: { priority: 3, interruptible: false, clip: "idle", view: "side", implemented: true },
+  /** Solo por petición externa (futuro PvP): nunca se elige sola. Dura lo que dura el clip. */
+  ATTACK: { priority: 3, interruptible: false, clip: "attack", view: "side", implemented: true },
   PLAY: { priority: 3, interruptible: false, clip: "idle", view: "side", implemented: false },
   INTERACT: { priority: 4, interruptible: false, clip: "idle", view: "side", implemented: false },
 };

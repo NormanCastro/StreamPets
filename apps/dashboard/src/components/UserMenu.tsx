@@ -78,7 +78,7 @@ export function UserMenu({ me, onLogout }: { me: Me; onLogout: () => void }) {
                   </span>
                 )}
               </strong>
-              <span className="muted">{isAdmin ? "Administración" : premium ? "Plan premium" : "Plan gratis"}</span>
+              <span className="muted">{isAdmin ? "Administración" : premium ? "Plan premium" : "Plan básico"}</span>
             </div>
           </div>
           {me.role === "streamer" && (

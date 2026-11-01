@@ -208,18 +208,25 @@ Lo aplica el **servidor**, no solo el panel: las mascotas nuevas se eligen solo 
 
 ## Mascotas propias de cada canal
 
-Los canales con plan **premium** pueden subir hasta **3 mascotas propias** desde la pestaña «Mis pets» (el plan gratis no puede subir ninguna).
+Cada canal empieza con **3 cupos** de mascotas propias (pestaña «Mis pets»). El administrador puede cambiar los cupos canal por canal en «Canales» (columna «Pets propias», de 0 a 50): sirve para vender más slots. Bajar el cupo no borra las pets que ya tiene, pero no puede subir más hasta bajar del límite.
 
-- Cada mascota es un único PNG de **520×280** (celdas de 40×40, 13 columnas × 7 filas, sin entrelazado, hasta 120 KB). El panel trae la guía de filas y una plantilla descargable (`/admin/plantilla-pet.png`).
-  Fila 0: 8 rotaciones (south, south-east, east, north-east, north, north-west, west, south-west). Filas 1-3: idle south/east/west (8 cuadros). Filas 4-6: walk south/east/west (13 cuadros). Los pies van en x=20, y=34 de cada celda.
+- Hay dos formas de subir una mascota:
+  1. **Imágenes sueltas en un .zip** (la fácil, como vienen los packs comprados): `Idle1.png, Idle2.png…` y `Walk1.png, Walk2.png…` son obligatorias (Idle ≥ 1 imagen, Walk ≥ 2); `Attack1.png…` es opcional y el resto (Hurt, Death, Stone…) se ignora. Cuadros del mismo tamaño (16–256 px por lado), mirando a la derecha (hay una casilla para invertirlo), hasta 24 por animación, zip de hasta 1,5 MB. El servidor lo convierte solo (`apps/server/src/domain/pet-pack.ts`): recorta al contenido, lo reduce por un factor entero si es más grande que las pets normales (máx. 48 px de alto), genera el lado izquierdo reflejando y arma la hoja y su JSON. Los números de los nombres se ordenan como números (`Walk10` va después de `Walk2`), se aceptan carpetas y se ignoran `__MACOSX` y archivos ocultos.
+  2. **Hoja única de 520×280** (avanzada; celdas de 40×40, 13 columnas × 7 filas, sin entrelazado, hasta 120 KB). El panel trae la guía de filas y una plantilla descargable (`/admin/plantilla-pet.png`).
+     Fila 0: 8 rotaciones. Filas 1-3: idle south/east/west (8 cuadros). Filas 4-6: walk south/east/west (13 cuadros). Los pies van en x=20, y=34 de cada celda.
+- **Vista previa antes de enviar:** al elegir el .zip, el servidor lo convierte (`POST /api/admin/custom-pets/preview`, no guarda nada) y el panel muestra la mascota animada (Quieta / Caminar / Ataque, mirando a cada lado) más qué imágenes se usaron e ignoraron. Recién con el botón «Enviar a revisión» se crea la solicitud. Los errores dicen qué falta (p. ej. «Falta la animación Walk»).
 - Al subirla queda **en revisión** y no se ve en ningún stream. En la pestaña **Moderación** (la clave de administración, o el dueño de la instalación entrando con Twitch) se ve la hoja completa y la animación, y se puede **aprobar, rechazar (con motivo) o eliminar**.
 - Una pet aprobada es exclusiva del canal que la subió (ni siquiera el dueño de la instalación la puede usar). Al rechazarla o eliminarla, quienes la tenían pasan a otra especie.
 - El servidor valida el PNG (firma, medidas, CRC de cada bloque) y guarda una copia limpia, sin metadatos. Las imágenes se guardan en la base de datos (el disco de Render gratis se borra en cada reinicio) y solo las aprobadas se sirven, en `/api/custom-species/<id>/…`.
-- Los cupos por plan están en `CUSTOM_PET.quota` (`packages/shared/src/index.ts`).
+- El cupo inicial es `CUSTOM_PET.defaultSlots` (`packages/shared/src/index.ts`).
+
+### Animación de ataque (gancho para un futuro PvP)
+
+El motor ya soporta un clip **opcional** `attack` por especie (no se pide a las especies base ni a las pets sin `Attack`). Hay un estado `ATTACK` que nunca se elige solo: se lanza desde código con `engine.attack(petId, "east" | "west")` o `pet.playAttack()`. Anima el clip una sola vez (lo que dura, sin interrumpirse con prioridad igual o menor) y vuelve a IDLE; devuelve `false` si la especie no trae ataque. Desde la consola del overlay: `__overlay.engine.attack("<id>", "west")`. La pelea en sí (daño, turnos, quién ataca a quién) no está hecha todavía.
 
 ## Catálogo del administrador
 
-La pestaña **Catálogo** (clave de administración, o el dueño entrando con Twitch) lista todas las mascotas separadas en Gratis, Premium y Exclusivas, de la más usada a la menos usada, con en cuántos canales y cuántas mascotas hay de cada una. Cada especie tiene un interruptor: al **desactivarla** deja de estar disponible para todos los canales (incluido el dueño), quienes la tenían pasan a otra especie al instante y nadie nuevo la recibe. El estado se guarda en la base de datos (`species_disabled`) y se mantiene al reiniciar.
+La pestaña **Catálogo** (clave de administración, o el dueño entrando con Twitch) lista todas las mascotas separadas en Gratis, Premium y Exclusivas, de la más usada a la menos usada, con en cuántos canales y cuántas mascotas hay de cada una. Cada especie del catálogo base tiene un selector **General / Pet de evento / Exclusiva** (las de evento las usan todos los canales mientras estén activas: se encienden y apagan a mano con el interruptor) (se guarda en la base de datos como cambio sobre `index.json`, tabla `species_overrides`; al cambiarlo, los canales que ya no pueden usarla pasan a otra especie al instante) y un interruptor: al **desactivarla** deja de estar disponible para todos los canales (incluido el dueño), quienes la tenían pasan a otra especie al instante y nadie nuevo la recibe. El estado se guarda en la base de datos (`species_disabled`) y se mantiene al reiniciar.
 
 ## Pendiente
 

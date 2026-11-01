@@ -6,6 +6,7 @@ import { DEFAULT_BEHAVIOR, STATE_DEFS } from "../src/pet/state.js";
 import type { PetState } from "../src/pet/state.js";
 import { findNearbyPairs } from "../src/world/proximity.js";
 import { Stage } from "../src/world/stage.js";
+import { resolveClips } from "../src/assets/species.js";
 import { loadShibaFixture } from "./helpers.js";
 
 const species = loadShibaFixture();
@@ -254,5 +255,41 @@ describe("escenario y proximidad", () => {
     expect(ids(12)).toEqual(["ab", "ad"]);
     expect(ids(5)).toEqual([]);
     expect(findNearbyPairs([a, b], 0)).toEqual([]);
+  });
+});
+
+describe("ataque (gancho para PvP)", () => {
+  const stage = new Stage({ width: 640, height: 180 });
+  const withAttack = ((): typeof species => {
+    const def = { ...species.def, clips: { ...species.def.clips, attack: { source: "Walk", fps: 10, loop: false } } };
+    return { ...species, def, clips: resolveClips(def, species.sheet) };
+  })();
+
+  it("una especie sin ataque lo rechaza y sigue funcionando", () => {
+    const pet = makePet(stage, 10);
+    expect(pet.canAttack).toBe(false);
+    expect(pet.playAttack()).toBe(false);
+    expect(pet.requestState("ATTACK")).toBe(false);
+    expect(pet.state).not.toBe("ATTACK");
+  });
+
+  it("con ataque: se gira, anima el clip una vez y vuelve a IDLE; nunca se elige sola", () => {
+    const pet = makePet(stage, 11, { species: withAttack, facing: "east", behavior: LONG_STATES });
+    expect(pet.canAttack).toBe(true);
+    expect(pet.playAttack("west")).toBe(true);
+    expect(pet.state).toBe("ATTACK");
+    expect(pet.clip).toBe("attack");
+    expect(pet.view).toBe("west");
+    expect(pet.requestState("RUN")).toBe(false); // no se interrumpe
+    run(pet, pet.stateDuration + 0.05, 1 / 60);
+    expect(pet.state).toBe("IDLE");
+  });
+
+  it("no ataca solo: tras mucho tiempo autónomo nunca entra en ATTACK", () => {
+    const pet = makePet(stage, 12, { species: withAttack });
+    const seen = new Set<PetState>();
+    pet.onStateChange = (_p, _f, to) => seen.add(to);
+    run(pet, 600, 1 / 30);
+    expect(seen.has("ATTACK")).toBe(false);
   });
 });

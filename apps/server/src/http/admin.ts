@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { LIMITS, PlanSchema, SpeciesIdSchema, TwitchLoginSchema } from "@streampets/shared";
+import { CUSTOM_PET, LIMITS, PlanSchema, SpeciesIdSchema, TwitchLoginSchema } from "@streampets/shared";
 import type { Db } from "../db/client.js";
 import * as repo from "../db/repo.js";
 import type { AllowedChannelRow, OverlayRow, SettingsRow } from "../db/schema.js";
@@ -166,7 +166,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
             id: e.id,
             name: e.name,
             url: e.url,
-            category: e.scope === "exclusive" ? "exclusive" : e.tier === "premium" ? "premium" : "free",
+            category: e.scope,
             premium: e.tier === "premium",
             custom: e.ownerStreamerId !== undefined,
             ownerLogin,
@@ -183,14 +183,34 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
       admin.patch("/catalog/:id", async (req, reply) => {
         if (!isModerator(req)) return fail(reply, 403, "forbidden");
         const { id } = req.params as { id: string };
-        const body = parse(z.object({ disabled: z.boolean() }).strict(), req.body, reply);
+        const body = parse(
+          z
+            .object({ disabled: z.boolean().optional(), category: z.enum(["general", "event", "exclusive"]).optional() })
+            .strict()
+            .refine((b) => b.disabled !== undefined || b.category !== undefined, "nada que cambiar"),
+          req.body,
+          reply,
+        );
         if (!body) return reply;
         if (!species.has(id)) return fail(reply, 404, "not_found");
-        await repo.setSpeciesDisabled(db, id, body.disabled);
-        species.setDisabled(await repo.listDisabledSpecies(db));
-        // Quien la tenía pasa a otra especie ya; y todos los canales recalculan lo permitido.
+        if (body.category !== undefined) {
+          // Las pets propias son siempre exclusivas de su canal: solo se cambia el tipo de las del catálogo base.
+          const base = species.baseEntry(id);
+          if (!base) return fail(reply, 400, "custom_species");
+          // Ya no se separa gratis de premium: el tipo lo da solo la categoría (el nivel premium antiguo se limpia al elegir una).
+          const target = { scope: body.category, tier: "free" as const };
+          // Si coincide con lo que dice index.json no hace falta guardar nada.
+          await repo.setSpeciesOverride(db, id, target.scope === base.scope && target.tier === base.tier ? null : target);
+          species.setOverrides(await repo.listSpeciesOverrides(db));
+        }
+        if (body.disabled !== undefined) {
+          await repo.setSpeciesDisabled(db, id, body.disabled);
+          species.setDisabled(await repo.listDisabledSpecies(db));
+        }
+        // Quien la tenía y ya no puede usarla pasa a otra especie; todos los canales recalculan lo permitido.
         await service.refreshAllAccess(await repo.listStreamersUsingSpecies(db, id));
-        return { id, disabled: body.disabled };
+        const now = species.list().find((e) => e.id === id);
+        return { id, disabled: species.isDisabled(id), category: now?.scope ?? "general" };
       });
 
       admin.get("/me", async (req) => {
@@ -245,6 +265,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
         keyPrefix: r.keyPrefix,
         keyCreatedAt: r.keyCreatedAt,
         species: grants,
+        customSlots: r.customSlots,
         createdAt: r.createdAt,
         lastLoginAt: r.lastLoginAt,
       });
@@ -298,14 +319,20 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
         if (!params) return reply;
         const body = parse(
           z
-            .object({ plan: PlanSchema.optional(), species: z.array(SpeciesIdSchema).max(100).optional() })
+            .object({
+              plan: PlanSchema.optional(),
+              species: z.array(SpeciesIdSchema).max(100).optional(),
+              /** Cupos de mascotas propias del canal (se cobran aparte: los asigna el administrador). */
+              customSlots: z.number().int().min(0).max(CUSTOM_PET.maxSlots).optional(),
+            })
             .strict()
-            .refine((b) => b.plan !== undefined || b.species !== undefined, "nada que cambiar"),
+            .refine((b) => b.plan !== undefined || b.species !== undefined || b.customSlots !== undefined, "nada que cambiar"),
           req.body,
           reply,
         );
         if (!body) return reply;
-        if (params.login === deps.ownerLogin) return fail(reply, 400, "owner");
+        // El plan y las especies del dueño no se tocan (tiene todo); sus cupos de pets propias sí.
+        if (params.login === deps.ownerLogin && (body.plan !== undefined || body.species !== undefined)) return fail(reply, 400, "owner");
         const list = body.species !== undefined ? [...new Set(body.species)] : undefined;
         if (list) {
           for (const id of list) {
@@ -318,6 +345,7 @@ export function registerAdminRoutes(app: FastifyInstance, deps: AdminDeps): void
         if (!found) return fail(reply, 404, "not_found");
         if (body.plan !== undefined) await repo.setChannelPlan(db, params.login, body.plan);
         if (list) await repo.setChannelSpecies(db, params.login, list);
+        if (body.customSlots !== undefined) await repo.setChannelCustomSlots(db, params.login, body.customSlots);
         // Quien pierde una especie pasa a una permitida, y el overlay se entera al instante.
         const streamer = await repo.findStreamerForAllowed(db, found);
         if (streamer) await service.refreshAccess(streamer.id);

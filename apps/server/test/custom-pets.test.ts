@@ -125,13 +125,14 @@ const upload = (h: Record<string, string>, name = "Mi pet", png: Buffer = makePn
   inject("POST", "/api/admin/custom-pets", h, { name, png: png.toString("base64") });
 
 describe("subir (cupos por plan)", () => {
-  it("plan gratis no puede subir (403 plan_required)", async () => {
+  it("el plan básico también tiene 3 cupos", async () => {
     const otra = await login("otra");
-    const r = await upload(otra);
-    expect([r.statusCode, r.json().error]).toEqual([403, "plan_required"]);
+    for (let i = 0; i < 3; i++) expect((await upload(otra, `Pet ${i}`)).statusCode).toBe(201);
+    expect((await upload(otra)).json().error).toBe("quota_reached");
+    expect((await inject("GET", "/api/admin/custom-pets", otra)).json().quota).toEqual({ used: 3, max: 3 });
   });
 
-  it("premium sube hasta 3 (pendientes) y luego recibe quota_reached; rechazadas no cuentan", async () => {
+  it("sube hasta 3 (pendientes) y luego recibe quota_reached; rechazadas no cuentan", async () => {
     const amiga = await login("amiga");
     const ids: string[] = [];
     for (let i = 0; i < 3; i++) {
@@ -168,6 +169,53 @@ describe("subir (cupos por plan)", () => {
     expect((await inject("POST", "/api/admin/custom-pets", { cookie: cookie as string }, { name: "a", png: "AAAA" })).statusCode).toBe(403);
     expect((await inject("GET", "/api/admin/custom-pets")).statusCode).toBe(401);
     expect((await inject("GET", "/api/custom-species/u-00000000/sheet.png")).statusCode).toBe(404);
+  });
+});
+
+describe("cupos por canal", () => {
+  const patch = (login: string, body: unknown) => inject("PATCH", `/api/admin/channels/${login}`, adm, body);
+
+  it("cada canal empieza con 3 y el administrador los cambia canal por canal", async () => {
+    const list = (await inject("GET", "/api/admin/channels", adm)).json().items as Array<{ login: string; customSlots: number }>;
+    expect(list.map((c) => c.customSlots)).toEqual([3, 3, 3]);
+    expect((await patch("amiga", { customSlots: 5 })).json().customSlots).toBe(5);
+    const amiga = await login("amiga");
+    for (let i = 0; i < 5; i++) expect((await upload(amiga, `Pet ${i}`)).statusCode).toBe(201);
+    expect((await upload(amiga)).json().error).toBe("quota_reached");
+    expect((await inject("GET", "/api/admin/custom-pets", amiga)).json().quota).toEqual({ used: 5, max: 5 });
+    // otro canal no se ve afectado
+    expect((await inject("GET", "/api/admin/custom-pets", await login("otra"))).json().quota.max).toBe(3);
+  });
+
+  it("bajar el cupo no borra lo que ya tiene, pero no deja subir más hasta bajar del límite", async () => {
+    const amiga = await login("amiga");
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) ids.push((await upload(amiga, `Pet ${i}`)).json().id as string);
+    await patch("amiga", { customSlots: 1 });
+    expect((await inject("GET", "/api/admin/custom-pets", amiga)).json().items).toHaveLength(3);
+    expect((await upload(amiga)).json().error).toBe("quota_reached");
+    await inject("DELETE", `/api/admin/custom-pets/${ids[0]}`, amiga);
+    await inject("DELETE", `/api/admin/custom-pets/${ids[1]}`, amiga);
+    expect((await upload(amiga)).json().error).toBe("quota_reached"); // queda 1 de 1
+    await inject("DELETE", `/api/admin/custom-pets/${ids[2]}`, amiga);
+    expect((await upload(amiga)).statusCode).toBe(201);
+  });
+
+  it("con 0 cupos no puede subir (plan_required)", async () => {
+    await patch("otra", { customSlots: 0 });
+    const r = await upload(await login("otra"));
+    expect([r.statusCode, r.json().error]).toEqual([403, "plan_required"]);
+  });
+
+  it("solo el administrador los cambia; valida el número; el dueño también puede tener los suyos", async () => {
+    const amiga = await login("amiga");
+    expect((await inject("PATCH", "/api/admin/channels/amiga", amiga, { customSlots: 9 })).statusCode).toBe(403);
+    for (const bad of [-1, 51, 1.5, "3", null]) expect((await patch("amiga", { customSlots: bad })).statusCode).toBe(400);
+    expect((await patch("amiga", {})).statusCode).toBe(400);
+    expect((await patch("fantasma", { customSlots: 2 })).statusCode).toBe(404);
+    expect((await patch("nazhika", { customSlots: 10 })).json().customSlots).toBe(10);
+    expect((await patch("nazhika", { plan: "free" })).json().error).toBe("owner");
+    expect((await patch("amiga", { customSlots: 50 })).statusCode).toBe(200);
   });
 });
 

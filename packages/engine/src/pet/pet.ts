@@ -83,10 +83,31 @@ export class Pet {
   requestState(next: PetState): boolean {
     const nextDef = STATE_DEFS[next];
     if (!nextDef.implemented) return false;
+    if (!this.species.clips.get(nextDef.clip)?.has(next === "ATTACK" ? this.facing : "east")) return false;
     const curDef = STATE_DEFS[this.state];
     if (!curDef.interruptible && nextDef.priority <= curDef.priority) return false;
     this.enter(next, true);
     return true;
+  }
+
+  /** ¿La especie trae animación de ataque? */
+  get canAttack(): boolean {
+    return this.species.clips.get("attack")?.has("east") === true;
+  }
+
+  /**
+   * Lanza la animación de ataque (una vez; luego vuelve a IDLE). Gancho para el futuro PvP.
+   * Si `towards` es "east"/"west", se gira hacia ese lado antes de atacar. Devuelve false si no puede.
+   */
+  playAttack(towards?: Facing): boolean {
+    if (!this.canAttack) return false;
+    const cur = STATE_DEFS[this.state];
+    if (!cur.interruptible && cur.priority >= STATE_DEFS.ATTACK.priority) return false;
+    if (towards) {
+      this.facing = towards;
+      this.dir = towards === "east" ? 1 : -1;
+    }
+    return this.requestState("ATTACK");
   }
 
   update(rawDt: number): void {
@@ -168,7 +189,9 @@ export class Pet {
     this.animator.play(resolved.frames.length, resolved.def.fps, resolved.def.loop, startAt);
 
     this.stateDuration =
-      next === "JUMP"
+      next === "ATTACK"
+        ? resolved.frames.length / resolved.def.fps
+        : next === "JUMP"
         ? this.behavior.jump.duration
         : (() => {
             const [min, max] = this.behavior.durations[next as TimedState];

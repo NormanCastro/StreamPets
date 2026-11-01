@@ -5,7 +5,9 @@ import type { Db } from "../db/client.js";
 import * as repo from "../db/repo.js";
 import type { ChatService } from "../domain/chat-service.js";
 import type { SpeciesAccess } from "../domain/access.js";
-import { customQuota, customSheetMeta, customSpeciesDef, newCustomPetId, reloadCustomSpecies } from "../domain/custom-pets.js";
+import { customSheetMeta, customSpeciesDef, newCustomPetId, parsePack, reloadCustomSpecies } from "../domain/custom-pets.js";
+import { convertPetPack } from "../domain/pet-pack.js";
+import { PACK } from "../domain/pet-pack.js";
 import type { SpeciesCatalog } from "../domain/species.js";
 import { sanitizePng } from "../lib/png.js";
 
@@ -36,13 +38,13 @@ export function registerCustomPetPublicRoutes(app: FastifyInstance, deps: { db: 
     const row = await approved((req.params as { id: string }).id, reply);
     if (!row) return reply;
     reply.header("Cache-Control", "public, max-age=60");
-    return customSpeciesDef(row.id, row.name);
+    return customSpeciesDef(row.id, row.name, parsePack(row.pack));
   });
   app.get("/api/custom-species/:id/sheet.json", async (req, reply) => {
     const row = await approved((req.params as { id: string }).id, reply);
     if (!row) return reply;
     reply.header("Cache-Control", "public, max-age=60");
-    return customSheetMeta(row.id);
+    return customSheetMeta(row.id, parsePack(row.pack));
   });
   app.get("/api/custom-species/:id/sheet.png", async (req, reply) => {
     const row = await approved((req.params as { id: string }).id, reply);
@@ -61,17 +63,32 @@ export interface CustomPetAdminDeps {
   now?: (() => Date) | undefined;
 }
 
+const NameField = z
+  .string()
+  .trim()
+  .min(1)
+  .max(CUSTOM_PET.nameMax)
+  .regex(/^[\p{L}\p{N} _.'-]+$/u, "solo letras, números y espacios");
+
+const B64 = /^[A-Za-z0-9+/]+={0,2}$/;
+const ZIP_B64_MAX = Math.ceil((PACK.maxZipBytes * 4) / 3) + 16;
+
+/** O bien la hoja PNG de la plantilla fija, o bien un .zip de imágenes sueltas (se convierte aquí). */
 const UploadBody = z
   .object({
-    name: z
-      .string()
-      .trim()
-      .min(1)
-      .max(CUSTOM_PET.nameMax)
-      .regex(/^[\p{L}\p{N} _.'-]+$/u, "solo letras, números y espacios"),
-    /** PNG en base64 (sin el prefijo data:). */
-    png: z.string().max(Math.ceil((CUSTOM_PET.maxBytes * 4) / 3) + 16).regex(/^[A-Za-z0-9+/]+={0,2}$/),
+    name: NameField,
+    /** PNG de la plantilla fija en base64 (sin el prefijo data:). */
+    png: z.string().max(Math.ceil((CUSTOM_PET.maxBytes * 4) / 3) + 16).regex(B64).optional(),
+    /** .zip de imágenes sueltas (Idle1.png, Walk1.png, Attack1.png…) en base64. */
+    zip: z.string().max(ZIP_B64_MAX).regex(B64).optional(),
+    /** El dibujo original mira a la izquierda (solo con zip). */
+    flip: z.boolean().optional(),
   })
+  .strict()
+  .refine((b) => (b.png === undefined) !== (b.zip === undefined), "png o zip");
+
+const PreviewBody = z
+  .object({ zip: z.string().max(ZIP_B64_MAX).regex(B64), flip: z.boolean().optional() })
   .strict();
 
 const ReviewBody = z.object({ reason: z.string().trim().max(200).optional() }).strict();
@@ -82,7 +99,7 @@ export function registerCustomPetAdminRoutes(
   deps: CustomPetAdminDeps,
   who: { sid: (req: FastifyRequest) => string; isModerator: (req: FastifyRequest) => boolean },
 ): void {
-  const { db, service, species, access } = deps;
+  const { db, service, species } = deps;
   const now = () => (deps.now ? deps.now() : new Date());
 
   /** Se llama cuando cambia lo aprobado: actualiza el catálogo y reubica a quien usaba una pet que ya no está. */
@@ -100,6 +117,7 @@ export function registerCustomPetAdminRoutes(
       rejectReason: r.rejectReason,
       createdAt: r.createdAt,
       reviewedAt: r.reviewedAt,
+      pack: parsePack(r.pack),
       png: full ? dataUrl(full.png) : null,
     };
   };
@@ -107,30 +125,55 @@ export function registerCustomPetAdminRoutes(
   // ── Del canal ──
   admin.get("/custom-pets", async (req) => {
     const sid = who.sid(req);
-    const plan = (await access.info(sid)).plan;
+    const slots = (await repo.getAccessForStreamer(db, sid)).customSlots;
     const items = await repo.listCustomPetsOf(db, sid);
     return {
       items: await Promise.all(items.slice(0, 20).map(view)),
-      quota: { used: await repo.countActiveCustomPets(db, sid), max: customQuota(plan) },
+      quota: { used: await repo.countActiveCustomPets(db, sid), max: slots },
     };
   });
 
+  /** Convierte el .zip sin guardar nada: la pantalla lo usa para mostrar cómo se verá antes de enviarlo. */
+  admin.post(
+    "/custom-pets/preview",
+    { bodyLimit: 2_300_000, config: { rateLimit: { max: 40, timeWindow: "1 hour" } } },
+    async (req, reply) => {
+      const sid = who.sid(req);
+      const parsed = PreviewBody.safeParse(req.body);
+      if (!parsed.success) return fail(reply, 400, "invalid_request");
+      if ((await repo.getAccessForStreamer(db, sid)).customSlots === 0) return fail(reply, 403, "plan_required");
+      const out = convertPetPack(Buffer.from(parsed.data.zip, "base64"), { flip: parsed.data.flip === true });
+      if (!out.ok) return fail(reply, 400, out.error, out.detail);
+      return { png: dataUrl(out.png), pack: out.info, used: out.used, ignored: out.ignored };
+    },
+  );
+
   admin.post(
     "/custom-pets",
-    { bodyLimit: 220 * 1024, config: { rateLimit: { max: 10, timeWindow: "1 hour" } } },
+    { bodyLimit: 2_300_000, config: { rateLimit: { max: 10, timeWindow: "1 hour" } } },
     async (req, reply) => {
       const sid = who.sid(req);
       const parsed = UploadBody.safeParse(req.body);
       if (!parsed.success) return fail(reply, 400, "invalid_request");
-      const max = customQuota((await access.info(sid)).plan);
+      const max = (await repo.getAccessForStreamer(db, sid)).customSlots;
       if (max === 0) return fail(reply, 403, "plan_required");
       if ((await repo.countActiveCustomPets(db, sid)) >= max) return fail(reply, 403, "quota_reached");
 
-      const check = sanitizePng(Buffer.from(parsed.data.png, "base64"), CUSTOM_PET.sheetWidth, CUSTOM_PET.sheetHeight, CUSTOM_PET.maxBytes);
-      if (!check.ok) return fail(reply, 400, check.error);
+      let png: Buffer;
+      let pack: string | null = null;
+      if (parsed.data.zip !== undefined) {
+        const out = convertPetPack(Buffer.from(parsed.data.zip, "base64"), { flip: parsed.data.flip === true });
+        if (!out.ok) return fail(reply, 400, out.error, out.detail);
+        png = out.png;
+        pack = JSON.stringify(out.info);
+      } else {
+        const check = sanitizePng(Buffer.from(parsed.data.png ?? "", "base64"), CUSTOM_PET.sheetWidth, CUSTOM_PET.sheetHeight, CUSTOM_PET.maxBytes);
+        if (!check.ok) return fail(reply, 400, check.error);
+        png = check.png;
+      }
 
       const id = newCustomPetId();
-      await repo.insertCustomPet(db, { id, streamerId: sid, name: parsed.data.name, png: check.png });
+      await repo.insertCustomPet(db, { id, streamerId: sid, name: parsed.data.name, png, pack });
       return reply.code(201).send({ id, status: "pending" });
     },
   );

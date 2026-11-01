@@ -1,6 +1,6 @@
 const KEY = "streampets.adminToken";
 
-export type SpeciesScope = "general" | "exclusive";
+export type SpeciesScope = "general" | "exclusive" | "event";
 export type SpeciesTier = "free" | "premium";
 export type Plan = "free" | "premium";
 export interface Species {
@@ -26,6 +26,7 @@ export function lockReason(s: Pick<Species, "scope" | "tier">): string {
 export function speciesLabel(s: Species): string {
   if (s.disabled) return `🔒 ${s.name} · No disponible`;
   if (s.locked) return `🔒 ${s.name} · ${lockReason(s)}`;
+  if (s.scope === "event") return `${s.name} · Evento`;
   return s.tier === "premium" ? `${s.name} ★` : s.name;
 }
 export interface ViewerItem {
@@ -76,8 +77,7 @@ export interface CatalogItem {
   id: string;
   name: string;
   url: string;
-  category: "free" | "premium" | "exclusive";
-  premium: boolean;
+  category: "general" | "event" | "exclusive";
   custom: boolean;
   ownerLogin: string | null;
   disabled: boolean;
@@ -87,6 +87,24 @@ export interface CatalogItem {
   pets: number;
 }
 export type CustomPetStatus = "pending" | "approved" | "rejected";
+/** Medidas de una pet convertida desde un paquete .zip (null = plantilla fija de 520×280). */
+export interface PackInfo {
+  cellW: number;
+  cellH: number;
+  idle: number;
+  walk: number;
+  /** 0 = sin animación de ataque. */
+  attack: number;
+  anchorX: number;
+  anchorY: number;
+  shrink: number;
+}
+export interface PackPreviewResult {
+  png: string;
+  pack: PackInfo;
+  used: { idle: number; walk: number; attack: number };
+  ignored: string[];
+}
 export interface CustomPet {
   id: string;
   name: string;
@@ -96,6 +114,7 @@ export interface CustomPet {
   reviewedAt: string | null;
   /** La hoja completa como data URL. */
   png: string | null;
+  pack: PackInfo | null;
 }
 export interface ReviewPet extends CustomPet {
   login: string;
@@ -110,6 +129,8 @@ export interface ChannelItem {
   keyPrefix: string | null;
   /** Especies exclusivas que tiene permitidas. */
   species: string[];
+  /** Cupos de mascotas propias del canal. */
+  customSlots: number;
   createdAt: string;
   lastLoginAt: string | null;
 }
@@ -134,13 +155,29 @@ export function describeError(err: unknown): string {
   if (err.status === 429) return "Demasiados intentos, espera un minuto.";
   if (err.status === 400 && err.code === "owner") return "Ese es tu canal: no se puede quitar.";
   if (err.code === "unknown_species") return "Esa especie no existe.";
-  if (err.code === "plan_required") return "Subir mascotas propias es parte del plan premium.";
+  if (err.code === "custom_species") return "Las mascotas propias siempre son exclusivas de su canal.";
+  if (err.code === "plan_required") return "Tu plan no incluye subir mascotas propias.";
   if (err.code === "quota_reached") return "Ya usaste todos los cupos de tu plan. Elimina una para subir otra.";
   if (err.code === "bad_size") return "El PNG debe medir exactamente 520×280 píxeles.";
   if (err.code === "not_png") return "El archivo no es un PNG.";
   if (err.code === "interlaced") return "Guarda el PNG sin entrelazado (interlaced).";
   if (err.code === "corrupt") return "El PNG está dañado. Vuelve a exportarlo.";
   if (err.code === "too_large") return "El PNG pesa demasiado (máximo 120 KB).";
+  const d = typeof err.details === "string" ? ` (${err.details})` : "";
+  if (err.code === "bad_zip") return "No se pudo abrir el .zip. Comprímelo de nuevo (zip normal, sin contraseña).";
+  if (err.code === "zip_too_large") return "El .zip pesa demasiado (máximo 1,5 MB).";
+  if (err.code === "too_many_files") return "El .zip trae demasiados archivos (máximo 200).";
+  if (err.code === "file_too_large") return `Una imagen del .zip pesa demasiado${d}.`;
+  if (err.code === "no_frames") return "No encontré imágenes con nombres como Idle1.png y Walk1.png dentro del .zip.";
+  if (err.code === "missing_idle") return "Falta la animación Idle (Idle1.png, Idle2.png…).";
+  if (err.code === "missing_walk") return "Falta la animación Walk (Walk1.png, Walk2.png…).";
+  if (err.code === "walk_needs_two") return "Walk necesita al menos 2 imágenes para verse caminar.";
+  if (err.code === "too_many_frames") return `Una animación tiene más de 24 imágenes${d}.`;
+  if (err.code === "bad_png") return `Una imagen no es un PNG válido${d}.`;
+  if (err.code === "bad_frame_size") return `Cada imagen debe medir entre 16 y 256 píxeles por lado${d}.`;
+  if (err.code === "mixed_sizes") return `Todas las imágenes deben medir lo mismo${d}.`;
+  if (err.code === "empty_frames") return "Las imágenes están vacías (todo transparente).";
+  if (err.code === "sheet_too_large") return "El resultado pesa demasiado. Usa menos imágenes por animación.";
   if (err.code === "invalid_request" && Array.isArray(err.details)) {
     return (err.details as Array<{ path: string; message: string }>)
       .map((d) => (d.path ? `${d.path}: ${d.message}` : d.message))
@@ -230,10 +267,16 @@ export const api = {
   catalog: () => request<{ items: CatalogItem[] }>("GET", "/api/admin/catalog"),
   setSpeciesDisabled: (id: string, disabled: boolean) =>
     request<{ id: string; disabled: boolean }>("PATCH", `/api/admin/catalog/${encodeURIComponent(id)}`, { disabled }),
+  setSpeciesCategory: (id: string, category: CatalogItem["category"]) =>
+    request<{ id: string; category: CatalogItem["category"] }>("PATCH", `/api/admin/catalog/${encodeURIComponent(id)}`, { category }),
   customPets: () =>
     request<{ items: CustomPet[]; quota: { used: number; max: number } }>("GET", "/api/admin/custom-pets"),
   uploadCustomPet: (name: string, png: string) =>
     request<{ id: string; status: string }>("POST", "/api/admin/custom-pets", { name, png }),
+  previewPetPack: (zip: string, flip: boolean) =>
+    request<PackPreviewResult>("POST", "/api/admin/custom-pets/preview", { zip, flip }),
+  uploadPetPack: (name: string, zip: string, flip: boolean) =>
+    request<{ id: string; status: string }>("POST", "/api/admin/custom-pets", { name, zip, flip }),
   deleteCustomPet: (id: string) => request<void>("DELETE", `/api/admin/custom-pets/${id}`),
   reviewPets: (status: CustomPetStatus | "all") =>
     request<{ items: ReviewPet[] }>("GET", `/api/admin/moderation/pets?status=${status}`),
@@ -248,7 +291,7 @@ export const api = {
   createChannelKey: (login: string) =>
     request<{ key: string; prefix: string }>("POST", `/api/admin/channels/${encodeURIComponent(login)}/key`),
   revokeChannelKey: (login: string) => request<void>("DELETE", `/api/admin/channels/${encodeURIComponent(login)}/key`),
-  patchChannel: (login: string, body: { plan?: Plan; species?: string[] }) =>
+  patchChannel: (login: string, body: { plan?: Plan; species?: string[]; customSlots?: number }) =>
     request<ChannelItem>("PATCH", `/api/admin/channels/${encodeURIComponent(login)}`, body),
   removeChannel: (login: string) => request<void>("DELETE", `/api/admin/channels/${encodeURIComponent(login)}`),
   species: () => request<{ species: Species[] }>("GET", "/api/admin/species"),

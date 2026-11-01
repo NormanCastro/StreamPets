@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, describeError } from "../api";
 import type { CustomPetStatus, ReviewPet } from "../api";
-import { PetPreview, SheetView } from "./PetPreview";
+import { PackStudio, PetPreview, SheetView } from "./PetPreview";
 
 const FILTERS: Array<{ id: CustomPetStatus | "all"; label: string }> = [
   { id: "pending", label: "Pendientes" },
@@ -77,9 +77,10 @@ export function ModerationPanel() {
               </div>
               {p.status === "rejected" && p.rejectReason && <p className="muted">Motivo: {p.rejectReason}</p>}
             </div>
-            {p.png && <PetPreview png={p.png} label={`Vista previa de ${p.name}`} />}
+            {p.png && <PetPreview png={p.png} pack={p.pack} label={`Vista previa de ${p.name}`} />}
           </div>
-          {p.png && <SheetView png={p.png} />}
+          {p.png && p.pack ? <PackStudio png={p.png} pack={p.pack} /> : null}
+          {p.png && <SheetView png={p.png} pack={p.pack} />}
           <div className="row end modactions">
             {p.status !== "approved" && (
               <button disabled={busy} onClick={() => void approve(p)}>

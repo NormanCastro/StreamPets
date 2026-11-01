@@ -340,3 +340,12 @@ button.burger[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0
 tr.off td { opacity: .55; }
 tr.off td:last-child { opacity: 1; }
 .switchrow { display: inline-flex; align-items: center; gap: 12px; }
+input.slots { width: 76px; text-align: center; }
+.packplayer { image-rendering: pixelated; flex: none; border-radius: 12px; background: rgba(255, 255, 255, 0.04); }
+.packstudio { display: grid; gap: 10px; justify-items: start; }
+.packstage { padding: 10px; border: 1px solid var(--line); border-radius: 12px; background:
+  repeating-conic-gradient(rgba(255,255,255,0.05) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px; }
+.packtabs button[disabled] { opacity: 0.4; }
+.modeswitch { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.filechip { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ignored { font-size: 0.85em; }

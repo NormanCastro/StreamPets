@@ -14,6 +14,7 @@ export class SpeciesCatalog {
   private readonly byId = new Map<string, SpeciesEntry>();
   private custom: SpeciesEntry[] = [];
   private disabled = new Set<string>();
+  private overrides = new Map<string, { scope: SpeciesEntry["scope"]; tier: SpeciesEntry["tier"] }>();
 
   constructor(readonly entries: readonly SpeciesEntry[]) {
     if (entries.length === 0) throw new Error("El catálogo de especies está vacío");
@@ -54,8 +55,25 @@ export class SpeciesCatalog {
     return this.disabled.has(id);
   }
 
+  /** Cambios de tipo (gratis / premium / exclusiva) hechos por el administrador sobre las especies del catálogo base. */
+  setOverrides(list: ReadonlyArray<{ id: string; scope: SpeciesEntry["scope"]; tier: SpeciesEntry["tier"] }>): void {
+    this.overrides = new Map(list.map((o) => [o.id, { scope: o.scope, tier: o.tier }]));
+  }
+
+  /** La especie tal como viene de index.json, sin los cambios del administrador. */
+  baseEntry(id: string): SpeciesEntry | undefined {
+    return this.entries.find((e) => e.id === id);
+  }
+
   list(): readonly SpeciesEntry[] {
-    return this.custom.length === 0 ? this.entries : [...this.entries, ...this.custom];
+    const base =
+      this.overrides.size === 0
+        ? this.entries
+        : this.entries.map((e) => {
+            const o = this.overrides.get(e.id);
+            return o ? { ...e, scope: o.scope, tier: o.tier } : e;
+          });
+    return this.custom.length === 0 ? base : [...base, ...this.custom];
   }
 
   has(id: string): boolean {
