@@ -44,6 +44,11 @@
       "id": "zorro",
       "name": "Zorro",
       "url": "/assets/species/zorro/species.json"
+    },
+    {
+      "id": "2b",
+      "name": "2B",
+      "url": "/assets/species/2b/species.json"
     }
   ]
 }

@@ -1,0 +1,32 @@
+{
+  "id": "2b",
+  "name": "2B",
+  "sheetImage": "2b.png",
+  "sheetMeta": "2b.sheet.json",
+  "anchor": {
+    "x": 40,
+    "y": 64
+  },
+  "shadow": {
+    "rx": 11,
+    "ry": 3
+  },
+  "labelOffsetY": 50,
+  "clips": {
+    "idle": {
+      "source": "Idle",
+      "fps": 6,
+      "loop": true
+    },
+    "walk": {
+      "source": "Walk",
+      "fps": 10,
+      "loop": true
+    },
+    "run": {
+      "source": "Walk",
+      "fps": 16,
+      "loop": true
+    }
+  }
+}
