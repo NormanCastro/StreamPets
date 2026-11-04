@@ -1,0 +1,82 @@
+{
+  "character": {
+    "id": "mati",
+    "name": "Mati",
+    "size": {
+      "width": 80,
+      "height": 80
+    },
+    "directions": 8,
+    "view": "low top-down"
+  },
+  "spritesheet": {
+    "path": "mati.png",
+    "cell_size": {
+      "width": 80,
+      "height": 80
+    },
+    "sheet_size": {
+      "width": 720,
+      "height": 480
+    },
+    "columns": 9,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 9,
+        "animation": "Idle",
+        "animation_group_id": "a94b20fb-2e03-443f-ae6e-c5859b67ca02",
+        "direction": "south"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 9,
+        "animation": "Idle",
+        "animation_group_id": "a94b20fb-2e03-443f-ae6e-c5859b67ca02",
+        "direction": "east"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 9,
+        "animation": "Idle",
+        "animation_group_id": "a94b20fb-2e03-443f-ae6e-c5859b67ca02",
+        "direction": "west"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "dbe4caa9-eb71-489e-80b8-809960849c00",
+        "direction": "east"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "dbe4caa9-eb71-489e-80b8-809960849c00",
+        "direction": "west"
+      }
+    ]
+  }
+}

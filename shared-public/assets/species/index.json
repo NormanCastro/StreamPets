@@ -66,6 +66,21 @@
       "name": "Reno Navideño",
       "url": "/assets/species/reno-navideno/species.json",
       "scope": "event"
+    },
+    {
+      "id": "manu",
+      "name": "Manu",
+      "url": "/assets/species/manu/species.json"
+    },
+    {
+      "id": "mati",
+      "name": "Mati",
+      "url": "/assets/species/mati/species.json"
+    },
+    {
+      "id": "orco",
+      "name": "Orco",
+      "url": "/assets/species/orco/species.json"
     }
   ]
 }

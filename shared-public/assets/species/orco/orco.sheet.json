@@ -1,0 +1,98 @@
+{
+  "character": {
+    "id": "orco",
+    "name": "Orco",
+    "size": {
+      "width": 96,
+      "height": 96
+    },
+    "directions": 8,
+    "view": "low top-down"
+  },
+  "spritesheet": {
+    "path": "orco.png",
+    "cell_size": {
+      "width": 96,
+      "height": 96
+    },
+    "sheet_size": {
+      "width": 768,
+      "height": 768
+    },
+    "columns": 8,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 6,
+        "animation": "Attack",
+        "animation_group_id": "03c286b5-75ba-4146-851b-c8c27532e326",
+        "direction": "east"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 6,
+        "animation": "Attack",
+        "animation_group_id": "03c286b5-75ba-4146-851b-c8c27532e326",
+        "direction": "west"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "33305e7d-a90d-4201-879a-c06b65921901",
+        "direction": "east"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Walk",
+        "animation_group_id": "33305e7d-a90d-4201-879a-c06b65921901",
+        "direction": "west"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "54352829-a9f2-4860-b6fe-170a16b9b67e",
+        "direction": "south"
+      },
+      {
+        "row": 6,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "54352829-a9f2-4860-b6fe-170a16b9b67e",
+        "direction": "east"
+      },
+      {
+        "row": 7,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "Idle",
+        "animation_group_id": "54352829-a9f2-4860-b6fe-170a16b9b67e",
+        "direction": "west"
+      }
+    ]
+  }
+}

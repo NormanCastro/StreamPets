@@ -1,0 +1,37 @@
+{
+  "id": "orco",
+  "name": "Orco",
+  "sheetImage": "orco.png",
+  "sheetMeta": "orco.sheet.json",
+  "anchor": {
+    "x": 48,
+    "y": 79
+  },
+  "shadow": {
+    "rx": 20,
+    "ry": 4
+  },
+  "labelOffsetY": 65,
+  "clips": {
+    "idle": {
+      "source": "Idle",
+      "fps": 6,
+      "loop": true
+    },
+    "walk": {
+      "source": "Walk",
+      "fps": 10,
+      "loop": true
+    },
+    "run": {
+      "source": "Walk",
+      "fps": 15,
+      "loop": true
+    },
+    "attack": {
+      "source": "Attack",
+      "fps": 12,
+      "loop": false
+    }
+  }
+}

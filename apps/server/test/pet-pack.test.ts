@@ -163,6 +163,17 @@ describe("convertPetPack", () => {
     expect(!big.ok && big.error).toBe("file_too_large");
   });
 
+  it("un PNG que declara medidas gigantes se rechaza por el encabezado, sin decodificarlo (no gasta memoria)", () => {
+    const small = frame(32, 32);
+    const huge = Buffer.from(small);
+    huge.writeUInt32BE(60_000, 16); // ancho
+    huge.writeUInt32BE(60_000, 20); // alto
+    const before = process.memoryUsage().rss;
+    const r = convertPetPack(zip({ "Idle1.png": huge, "Walk1.png": small, "Walk2.png": small }));
+    expect(!r.ok && r.error).toBe("bad_frame_size");
+    expect(process.memoryUsage().rss - before).toBeLessThan(100_000_000);
+  });
+
   it("es determinista: el mismo zip da la misma hoja", () => {
     const a = convertPetPack(zip(pack()));
     const b = convertPetPack(zip(pack()));

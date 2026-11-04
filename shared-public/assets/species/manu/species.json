@@ -1,0 +1,32 @@
+{
+  "id": "manu",
+  "name": "Manu",
+  "sheetImage": "manu.png",
+  "sheetMeta": "manu.sheet.json",
+  "anchor": {
+    "x": 40,
+    "y": 62
+  },
+  "shadow": {
+    "rx": 10,
+    "ry": 2.5
+  },
+  "labelOffsetY": 47,
+  "clips": {
+    "idle": {
+      "source": "Idle",
+      "fps": 6,
+      "loop": true
+    },
+    "walk": {
+      "source": "Walk",
+      "fps": 10,
+      "loop": true
+    },
+    "run": {
+      "source": "Walk",
+      "fps": 16,
+      "loop": true
+    }
+  }
+}

@@ -68,6 +68,15 @@ interface Img {
 
 const fail = (error: PackError, detail?: string): PackOutcome => ({ ok: false, error, ...(detail ? { detail } : {}) });
 
+/** Ancho y alto declarados en el IHDR de un PNG (sin decodificar nada). */
+function headerSize(b: Uint8Array): { w: number; h: number } | null {
+  const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  if (b.length < 33 || sig.some((v, i) => b[i] !== v)) return null;
+  if (String.fromCharCode(b[12] ?? 0, b[13] ?? 0, b[14] ?? 0, b[15] ?? 0) !== "IHDR") return null;
+  const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  return { w: v.getUint32(16), h: v.getUint32(20) };
+}
+
 function baseName(path: string): string {
   return path.split("/").pop() ?? path;
 }
@@ -127,6 +136,13 @@ export function convertPetPack(zip: Uint8Array, opts: { flip?: boolean } = {}): 
   let size: { w: number; h: number } | undefined;
   for (const k of ["idle", "walk", "attack"] as const) {
     for (const g of groups[k]) {
+      // Se miden las dimensiones en el encabezado ANTES de decodificar: un PNG minúsculo puede declarar
+      // 60000×60000 y hacer que decodificarlo reserve gigas de memoria.
+      const head = headerSize(g.data);
+      if (!head) return fail("bad_png", baseName(g.path));
+      if (head.w < PACK.minFrame || head.h < PACK.minFrame || head.w > PACK.maxFrame || head.h > PACK.maxFrame) {
+        return fail("bad_frame_size", `${baseName(g.path)} (${head.w}x${head.h})`);
+      }
       let png: PNG;
       try {
         png = PNG.sync.read(Buffer.from(g.data));
